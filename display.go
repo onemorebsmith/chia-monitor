@@ -16,6 +16,8 @@ type Display struct {
 	screen tcell.Screen
 }
 
+var scrollOffset = 0
+
 func MakeDisplay() *Display {
 	var err error
 	d := &Display{}
@@ -69,6 +71,10 @@ func (d *Display) BlockingPoll() {
 				log.Println("Exiting")
 				d.screen.Fini()
 				os.Exit(0)
+			} else if ev.Key() == tcell.KeyUp {
+				//scrollOffset -= 1
+			} else if ev.Key() == tcell.KeyDown {
+				//scrollOffset += 1
 			}
 		}
 	}
@@ -84,16 +90,29 @@ func (d *Display) Refresh() {
 	d.writeMemStats()
 
 	d.screen.Show()
+	//d.screen.Sync()
 }
 
 const phaseProgress = 20.0
 const tableProgess = 1.0
 
+func (d Display) progressBar(x, y, width int, pct float32, filledStyle, remainingStyle tcell.Style) {
+	freeBars := int(float32(width) * pct)
+	//fullBars := int(float32(width) * (1 - pct))
+
+	barIdx := 0
+	for i := 0; i < width; i++ {
+		if i <= freeBars {
+			d.screen.SetContent(x+barIdx, y, '#', nil, filledStyle)
+		} else {
+			d.screen.SetContent(x+barIdx, y, '#', nil, remainingStyle)
+		}
+		barIdx++
+	}
+}
+
 func (d *Display) writeMemStats() {
 	w, _ := d.screen.Size()
-
-	barsize := float32(w - 4)
-	//style := tcell.StyleDefault.Foreground(tcell.ColorCadetBlue.TrueColor()).Background(tcell.ColorBlack)
 
 	freestyle := tcell.StyleDefault.Foreground(tcell.ColorGreen.TrueColor()).Background(tcell.ColorBlack)
 	usedstyle := tcell.StyleDefault.Foreground(tcell.ColorRed.TrueColor()).Background(tcell.ColorBlack)
@@ -102,20 +121,8 @@ func (d *Display) writeMemStats() {
 	free := (float32)(meminfo["MemAvailable"]) / 1024.0 / 1024.0
 	freePct := free / total
 
-	freeBars := int(barsize * freePct)
-	fullBars := int(barsize * (1 - freePct))
-
-	barIdx := 2
 	barHeight := 4
-	for i := 0; i < freeBars; i++ {
-		d.screen.SetContent(barIdx, barHeight, '#', nil, freestyle)
-		barIdx++
-	}
-
-	for i := 0; i < fullBars; i++ {
-		d.screen.SetContent(barIdx, barHeight, '#', nil, usedstyle)
-		barIdx++
-	}
+	d.progressBar(2, barHeight, w-4, freePct, freestyle, usedstyle)
 	emitStr(d.screen, w/2-9, barHeight-1, tcell.StyleDefault, fmt.Sprintf("[Mem: %f/%f GB] ", free, total))
 }
 
@@ -151,6 +158,9 @@ func scrolltext(str string, window int, offset int) string {
 var accum = 30
 
 func (d *Display) writeProcStates() {
+	donestyle := tcell.StyleDefault.Foreground(tcell.ColorGreen.TrueColor()).Background(tcell.ColorBlack)
+	remainingstyle := tcell.StyleDefault.Foreground(tcell.ColorRed.TrueColor()).Background(tcell.ColorBlack)
+
 	// scroll variable
 	sec := time.Now().Second()
 	if sec > 30 {
@@ -166,7 +176,11 @@ func (d *Display) writeProcStates() {
 	w, h := d.screen.Size()
 	style := tcell.StyleDefault.Foreground(tcell.ColorCadetBlue.TrueColor()).Background(tcell.ColorBlack)
 
-	height := 8
+	height := 8 + scrollOffset
+	if height < 8 {
+		height = 8
+	}
+
 	width := 2
 	maxLength := w / 2
 
@@ -185,7 +199,9 @@ func (d *Display) writeProcStates() {
 		table := state.State["table"]
 		bucket := state.State["bucket"]
 		nBuckets := state.State["bucketSize"]
+		tempDrive := state.State["temp_drive"]
 		stateStr := fmt.Sprintf("Phase %s Table %s Bucket %s/%s", phase, table, bucket, nBuckets)
+		tempDriveStr := fmt.Sprintf("Temp: %s", tempDrive)
 		last := state.State["last"]
 		ll := len(last)
 		if ll > maxLength {
@@ -197,16 +213,18 @@ func (d *Display) writeProcStates() {
 
 		progress := (p * phaseProgress) + (t * tableProgess)
 
-		emitStr(d.screen, width, height, style, strconv.Itoa(state.Pid))
+		emitStr(d.screen, width, height, style, fmt.Sprintf("Pid: %d", state.Pid))
 		emitStr(d.screen, width+20, height, style, fmt.Sprintf("%d %%", (int)(progress)))
 		emitStr(d.screen, width+40, height, style, fmt.Sprintf("Plot %d", state.Completions+1))
 		height += 1
 		emitStr(d.screen, width, height, style, stateStr)
+		emitStr(d.screen, width+40, height, style, tempDriveStr)
 		height += 1
 		emitStr(d.screen, width, height, style, last)
 		height += 1
 
-		emitStr(d.screen, width, height, style, "_________________________________________________")
+		d.progressBar(2, height, w-4, float32(progress)/100, donestyle, remainingstyle)
+		//emitStr(d.screen, width, height, style, "_________________________________________________")
 		for i := 0; i <= state.Completions; i++ {
 			for _, v := range state.PhaseTimes {
 				row := height

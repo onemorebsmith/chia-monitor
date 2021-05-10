@@ -35,6 +35,7 @@ var processors = map[string]*regexp.Regexp{
 	"phase":      regexp.MustCompile(`.*Starting phase (\d)/*.`),
 	"table":      regexp.MustCompile(`.*table (\d)`),
 	"bucket":     regexp.MustCompile(`.*Bucket (\d+)`),
+	"temp_drive": regexp.MustCompile(`Starting plotting progress into temporary dirs: (.*) and`),
 }
 
 var runCounter = regexp.MustCompile(`Total time = (\d+)`)

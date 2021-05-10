@@ -87,6 +87,8 @@ func main() {
 	log.Println(os.Getpid())
 	//os.Stdout = f
 
+	go startRecording()
+
 	encoding.Register()
 
 	display = MakeDisplay()
@@ -164,7 +166,7 @@ func main() {
 		}
 		for {
 			display.Refresh()
-			time.Sleep(1 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 
