@@ -6,10 +6,12 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -56,12 +58,6 @@ func parseMeminfo() (Meminfo, error) {
 	return ret, nil
 }
 
-var procIds = []int{
-	22672,
-	95297,
-	96071,
-}
-
 type logEntry struct {
 	pid int
 	msg string
@@ -79,6 +75,8 @@ func main() {
 
 		os.Exit(1)
 	}()
+
+	//monitorDrives("sda")
 
 	f, _ := os.OpenFile("stdout_redir", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	defer f.Close()
@@ -108,6 +106,19 @@ func main() {
 	}()
 
 	wg := sync.WaitGroup{}
+
+	o, err := exec.Command("/usr/bin/pgrep", "-f", "chia plots create").Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var procIds []int
+	for _, s := range strings.Split(string(o), "\n") {
+		pid, _ := strconv.Atoi(s)
+		if pid > 0 {
+			procIds = append(procIds, pid)
+		}
+	}
 
 	output := make(chan logEntry)
 	for _, pid := range procIds {
@@ -179,10 +190,6 @@ func main() {
 	display.BlockingPoll()
 
 	wg.Wait()
-
-	// o, err := os.ReadFile("/proc/meminfo")
-
-	// //o, err := exec.Command("/usr/bin/free", "--mega", "--t").Output()
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }

@@ -166,7 +166,7 @@ func (d *Display) writeProcStates() {
 	w, h := d.screen.Size()
 	style := tcell.StyleDefault.Foreground(tcell.ColorCadetBlue.TrueColor()).Background(tcell.ColorBlack)
 
-	height := h / 2
+	height := 8
 	width := 2
 	maxLength := w / 2
 
@@ -199,22 +199,36 @@ func (d *Display) writeProcStates() {
 
 		emitStr(d.screen, width, height, style, strconv.Itoa(state.Pid))
 		emitStr(d.screen, width+20, height, style, fmt.Sprintf("%d %%", (int)(progress)))
+		emitStr(d.screen, width+40, height, style, fmt.Sprintf("Plot %d", state.Completions+1))
 		height += 1
 		emitStr(d.screen, width, height, style, stateStr)
 		height += 1
 		emitStr(d.screen, width, height, style, last)
 		height += 1
 
-		emitStr(d.screen, width+5, height, style, "Phase")
-		emitStr(d.screen, width+20, height, style, phase)
+		emitStr(d.screen, width, height, style, "_________________________________________________")
+		for i := 0; i <= state.Completions; i++ {
+			for _, v := range state.PhaseTimes {
+				row := height
+				txt := ""
+				switch v.Phase {
+				case "copy":
+					row = 5
+					txt = "CP"
+				case "final":
+					row = 6
+					txt = "F "
+				default:
+					row, _ = strconv.Atoi(v.Phase)
+					txt = fmt.Sprintf("P%s", v.Phase)
+				}
+				row += height
+				emitStr(d.screen, width+(v.Run*12), row, style, fmt.Sprintf("%s %.3fh", txt, v.Duration.Hours()))
+			}
+		}
+		height += 7
+		emitStr(d.screen, width, h, style, "_________________________________________________")
 		height += 1
-		emitStr(d.screen, width+5, height, style, "Table")
-		emitStr(d.screen, width+20, height, style, table)
-		height += 1
-		emitStr(d.screen, width+5, height, style, "Bucket")
-		emitStr(d.screen, width+20, height, style, bucket)
-		height += 1
-
 	}
 
 	emitStr(d.screen, w/2-9, 1, tcell.StyleDefault, "Press ESC to exit.")
