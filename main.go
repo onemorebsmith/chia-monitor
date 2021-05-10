@@ -16,8 +16,6 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/encoding"
-	"github.com/gdamore/tcell/v2"
-	"github.com/mattn/go-runewidth"
 )
 
 type Meminfo map[string]uint64
@@ -27,8 +25,6 @@ var meminfo = Meminfo{}
 var plotterStates = PlotterStates{}
 
 var meminfoRegex = regexp.MustCompile(`(\w+):\s+(\d+)\s(\w+)`)
-
-var display *Display
 
 func parseMeminfo() (Meminfo, error) {
 	o, err := os.Open("/proc/meminfo")
@@ -90,8 +86,6 @@ func main() {
 	go startRecording()
 
 	encoding.Register()
-
-	display = MakeDisplay()
 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -161,16 +155,6 @@ func main() {
 	}
 
 	go func() {
-		if !display.Valid {
-			return
-		}
-		for {
-			display.Refresh()
-			time.Sleep(100 * time.Millisecond)
-		}
-	}()
-
-	go func() {
 		for {
 			s := <-output
 
@@ -183,34 +167,8 @@ func main() {
 			}
 
 			ps.Update(&s)
-			//display.Refresh()
 		}
 	}()
 
-	display.Show()
-	display.Refresh()
-	display.BlockingPoll()
-
 	wg.Wait()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// log.Println((string)(o))
-
-	// log.Println("Test")
-}
-
-func emitStr(s tcell.Screen, x, y int, style tcell.Style, str string) {
-	for _, c := range str {
-		var comb []rune
-		w := runewidth.RuneWidth(c)
-		if w == 0 {
-			comb = []rune{c}
-			c = ' '
-			w = 1
-		}
-		s.SetContent(x, y, c, comb, style)
-		x += w
-	}
 }
