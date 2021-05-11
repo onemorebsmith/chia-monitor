@@ -65,7 +65,7 @@ func startDriveMonitoring(cfg *MonitorConfig) {
 				driveUsage.WithLabelValues(v).Set(float64((stat.Blocks-stat.Bfree)*uint64(stat.Bsize)) / 1024 / 1024)
 			}
 
-			time.Sleep(slowRate)
+			time.Sleep(10 * time.Second)
 		}
 	}(validatePaths(cfg.TempPaths))
 
