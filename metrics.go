@@ -33,13 +33,6 @@ var (
 		Help: "The number of process currently plotting",
 	})
 
-	processVec = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "plotter_progress",
-		Help: "The number of process currently plotting",
-	}, []string{
-		"pid",
-	})
-
 	plotterState = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "plotter_state",
 		Help: "Full plotter state breakdown",

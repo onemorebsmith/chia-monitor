@@ -1,9 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 type PhaseTime struct {
@@ -42,6 +46,14 @@ var runCounter = regexp.MustCompile(`Total time = (\d+)`)
 var phaseTime = regexp.MustCompile(`Time for phase (\d) = (\d+)`)
 var copyTime = regexp.MustCompile(`Copy time = (\d+)`)
 
+var phaseTimings = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "phase_timings",
+	Help: "The number of process currently plotting",
+}, []string{
+	"pid",
+	"phase",
+})
+
 func checkRegex(s string, r *regexp.Regexp) ([]string, bool) {
 	if r.Match([]byte(s)) {
 		matches := r.FindStringSubmatch(s)
@@ -69,6 +81,7 @@ func (s *PlotterState) Update(entry *logEntry) {
 		}
 		// phase times
 		s.PhaseTimes = append(s.PhaseTimes, ps)
+		phaseTimings.WithLabelValues(fmt.Sprintf("%d", s.Pid), ps.Phase).Observe(ps.Duration.Seconds())
 	}
 
 	if val, valid := checkRegex(entry.msg, copyTime); valid {
@@ -79,6 +92,7 @@ func (s *PlotterState) Update(entry *logEntry) {
 			Duration: time.Second * time.Duration(dur),
 		}
 		s.PhaseTimes = append(s.PhaseTimes, ps)
+		phaseTimings.WithLabelValues(fmt.Sprintf("%d", s.Pid), ps.Phase).Observe(ps.Duration.Seconds())
 	}
 
 	if val, valid := checkRegex(entry.msg, runCounter); valid {
@@ -90,6 +104,7 @@ func (s *PlotterState) Update(entry *logEntry) {
 		}
 		s.Completions++
 		s.PhaseTimes = append(s.PhaseTimes, ps)
+		phaseTimings.WithLabelValues(fmt.Sprintf("%d", s.Pid), ps.Phase).Observe(ps.Duration.Seconds())
 	}
 
 	s.State["last"] = entry.msg
