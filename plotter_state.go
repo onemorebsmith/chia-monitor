@@ -46,7 +46,7 @@ var runCounter = regexp.MustCompile(`Total time = (\d+)`)
 var phaseTime = regexp.MustCompile(`Time for phase (\d) = (\d+)`)
 var copyTime = regexp.MustCompile(`Copy time = (\d+)`)
 
-var phaseTimings = promauto.NewHistogramVec(prometheus.HistogramOpts{
+var phaseTimings = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	Name: "phase_timings",
 	Help: "The number of process currently plotting",
 }, []string{
@@ -81,7 +81,7 @@ func (s *PlotterState) Update(entry *logEntry) {
 		}
 		// phase times
 		s.PhaseTimes = append(s.PhaseTimes, ps)
-		phaseTimings.WithLabelValues(fmt.Sprintf("%d", s.Pid), ps.Phase).Observe(ps.Duration.Seconds())
+		phaseTimings.WithLabelValues(fmt.Sprintf("%d", s.Pid), ps.Phase).Set(ps.Duration.Seconds())
 	}
 
 	if val, valid := checkRegex(entry.msg, copyTime); valid {
@@ -92,7 +92,7 @@ func (s *PlotterState) Update(entry *logEntry) {
 			Duration: time.Second * time.Duration(dur),
 		}
 		s.PhaseTimes = append(s.PhaseTimes, ps)
-		phaseTimings.WithLabelValues(fmt.Sprintf("%d", s.Pid), ps.Phase).Observe(ps.Duration.Seconds())
+		phaseTimings.WithLabelValues(fmt.Sprintf("%d", s.Pid), ps.Phase).Set(ps.Duration.Seconds())
 	}
 
 	if val, valid := checkRegex(entry.msg, runCounter); valid {
@@ -104,7 +104,7 @@ func (s *PlotterState) Update(entry *logEntry) {
 		}
 		s.Completions++
 		s.PhaseTimes = append(s.PhaseTimes, ps)
-		phaseTimings.WithLabelValues(fmt.Sprintf("%d", s.Pid), ps.Phase).Observe(ps.Duration.Seconds())
+		phaseTimings.WithLabelValues(fmt.Sprintf("%d", s.Pid), ps.Phase).Set(ps.Duration.Seconds())
 	}
 
 	s.State["last"] = entry.msg
