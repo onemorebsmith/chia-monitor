@@ -33,10 +33,16 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9323']
 
-  - job_name: 'chia'
+  - job_name: 'hppro'
          # metrics_path defaults to '/metrics'
          # scheme defaults to 'http'.
 
     static_configs:
       - targets: ['192.168.0.64:2112']
 
+  - job_name: 'capi'
+         # metrics_path defaults to '/metrics'
+         # scheme defaults to 'http'.
+
+    static_configs:
+      - targets: ['192.168.0.63:2112']

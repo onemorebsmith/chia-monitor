@@ -72,6 +72,15 @@ func main() {
 		os.Exit(1)
 	}()
 
+	cfg, err := parseConfig("config.yaml")
+	if err != nil {
+		log.Println(err)
+	}
+
+	log.Println(cfg)
+
+	monitorDrives(&cfg)
+
 	//monitorDrives("sda")
 
 	f, _ := os.OpenFile("stdout_redir", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)

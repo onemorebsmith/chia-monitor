@@ -34,13 +34,6 @@ var (
 	}, []string{
 		"pid",
 	})
-
-	phaseHistogram = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name: "phase_histogram",
-		Help: "The number of process currently plotting",
-	}, []string{
-		"drive",
-	})
 )
 
 func startRecording() {

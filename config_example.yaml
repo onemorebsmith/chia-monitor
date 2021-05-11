@@ -1,0 +1,10 @@
+TempPaths:
+  - /media/ext/plot_temp
+  - /media/ssd1/plot_temp
+
+StagingPaths:
+  - /media/ext/plot_staging
+  - /media/ssd1/plot_staging
+
+FinalPaths:
+  - /media/external/ext3/plots
