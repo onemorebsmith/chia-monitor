@@ -49,7 +49,7 @@ func validatePaths(paths []string) []string {
 	return validPaths
 }
 
-func monitorDrives(cfg *MonitorConfig) {
+func startDriveMonitoring(cfg *MonitorConfig) {
 
 	// monitor temp paths
 	go func(p []string) {
@@ -65,7 +65,7 @@ func monitorDrives(cfg *MonitorConfig) {
 				driveUsage.WithLabelValues(v).Set(float64((stat.Blocks-stat.Bfree)*uint64(stat.Bsize)) / 1024 / 1024)
 			}
 
-			time.Sleep(30 * time.Second)
+			time.Sleep(slowRate)
 		}
 	}(validatePaths(cfg.TempPaths))
 
@@ -82,7 +82,7 @@ func monitorDrives(cfg *MonitorConfig) {
 				plotCount.WithLabelValues(v).Set(float64(count))
 			}
 
-			time.Sleep(1 * time.Minute)
+			time.Sleep(slowRate)
 		}
 	}(validatePaths(append(cfg.FinalPaths, cfg.StagingPaths...)))
 }
