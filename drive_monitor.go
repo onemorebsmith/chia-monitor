@@ -131,7 +131,7 @@ func validatePaths(paths []string) []string {
 var driveRegex = regexp.MustCompile(`/dev/(\D{3})\d+`)
 
 func pathToDevice(path string) (string, error) {
-	o, err := exec.Command("/usr/bin/df", "-h", path).Output()
+	o, err := exec.Command("/usr/df", "-h", path).Output()
 	if err != nil {
 		log.Fatal(err)
 	}
