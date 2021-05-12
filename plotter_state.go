@@ -117,8 +117,8 @@ func updateProgress(ps *PlotterState) {
 }
 
 func phaseChanged(ps *PlotterState, phase string, duration int) {
+	ps.State["phase"] = phase
 	pid := fmt.Sprintf("%d", ps.Pid)
-	p := ps.State["phase"]
 	t := ps.State["table"]
 
 	tt := PhaseTime{
@@ -130,7 +130,7 @@ func phaseChanged(ps *PlotterState, phase string, duration int) {
 	// phase times
 	ps.PhaseTimes = append(ps.PhaseTimes, tt)
 	phaseTimings.WithLabelValues(fmt.Sprintf("%d", ps.Pid), ps.Phase).Set(ps.Duration.Seconds())
-	plotterState.WithLabelValues(pid, p, t).Set(1)
+	plotterState.WithLabelValues(pid, phase, t).Set(1)
 
 	updateProgress(ps)
 }
