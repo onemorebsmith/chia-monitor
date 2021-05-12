@@ -32,14 +32,17 @@ type PlotterState struct {
 	Duration    time.Duration
 }
 
-var processors = map[string]*regexp.Regexp{
-	"plotSize":   regexp.MustCompile(`Plot size is: (\d+)`),
-	"maxRam":     regexp.MustCompile(`Buffer size is: (\d+)MiB`),
-	"bucketSize": regexp.MustCompile(`Using (\d+) buckets`),
-	"phase":      regexp.MustCompile(`.*Starting phase (\d)/*.`),
-	"table":      regexp.MustCompile(`.*[table|tables] (\d)`),
-	"bucket":     regexp.MustCompile(`.*Bucket (\d+)`),
-	"temp_drive": regexp.MustCompile(`Starting plotting progress into temporary dirs: (.*) and`),
+var processors = map[string][]*regexp.Regexp{
+	"plotSize":   []*regexp.Regexp{regexp.MustCompile(`Plot size is: (\d+)`)},
+	"maxRam":     []*regexp.Regexp{regexp.MustCompile(`Buffer size is: (\d+)MiB`)},
+	"bucketSize": []*regexp.Regexp{regexp.MustCompile(`Using (\d+) buckets`)},
+	"phase":      []*regexp.Regexp{regexp.MustCompile(`.*Starting phase (\d)/*.`)},
+	"table": []*regexp.Regexp{
+		regexp.MustCompile(`Computing table (\d+)`),
+		regexp.MustCompile(`Compressing tables (\d+)`),
+	},
+	"bucket":     []*regexp.Regexp{regexp.MustCompile(`.*Bucket (\d+)`)},
+	"temp_drive": []*regexp.Regexp{regexp.MustCompile(`Starting plotting progress into temporary dirs: (.*) and`)},
 }
 
 var runCounter = regexp.MustCompile(`Total time = (\d+)`)
@@ -77,6 +80,16 @@ var plotterProgress = promauto.NewGaugeVec(prometheus.GaugeOpts{
 }, []string{
 	"pid",
 })
+
+func checkRegexes(s string, reg []*regexp.Regexp) ([]string, bool) {
+	for _, r := range reg {
+		if v, ok := checkRegex(s, r); ok {
+			return v, ok
+		}
+	}
+
+	return nil, false
+}
 
 func checkRegex(s string, r *regexp.Regexp) ([]string, bool) {
 	if r.Match([]byte(s)) {
@@ -137,7 +150,7 @@ func phaseChanged(ps *PlotterState, phase string, duration int) {
 
 func (s *PlotterState) Update(entry *logEntry) {
 	for k, r := range processors {
-		if val, valid := checkRegex(entry.msg, r); valid {
+		if val, valid := checkRegexes(entry.msg, r); valid {
 			s.State[k] = val[0]
 			updateProgress(s)
 		}
