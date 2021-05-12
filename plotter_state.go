@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"time"
@@ -116,14 +117,30 @@ func updateProgress(ps *PlotterState) {
 	case "copy":
 		progress = 95
 	default:
-		pi, _ := strconv.ParseFloat(p, 64)
-		ti, _ := strconv.ParseFloat(t, 64)
-		bi, _ := strconv.ParseFloat(b, 64)
-		bsi, _ := strconv.ParseFloat(bs, 64)
+		pi, err := strconv.ParseFloat(p, 64)
+		if err != nil {
+			pi = 1
+		}
+		ti, err := strconv.ParseFloat(t, 64)
+		if err != nil {
+			ti = 1
+		}
+		bi, err := strconv.ParseFloat(b, 64)
+		if err != nil {
+			bi = 1
+		}
+		bsi, err := strconv.ParseFloat(bs, 64)
+		if err != nil {
+			bsi = 128
+		}
 
 		// p4, t7, b 32/32
-		// (3 * 25) + (7/7) * 20 + (32/32) * 5 = 100
-		progress = ((pi - 1) * 20) + ((ti / 7) * 20) + (bi/bsi)*5
+		// bsi buckets = 1 table, 7 tables = 1 phase
+		progress = ((pi - 1) * 20) + ((ti / 7) * 20) + (bi/bsi)*2.85714285714
+	}
+
+	if ps.Pid == 64172 {
+		log.Printf("[%d] %f", ps.Pid, progress)
 	}
 
 	plotterProgress.WithLabelValues(pid).Set(progress)
@@ -151,6 +168,19 @@ func phaseChanged(ps *PlotterState, phase string, duration int) {
 func (s *PlotterState) Update(entry *logEntry) {
 	for k, r := range processors {
 		if val, valid := checkRegexes(entry.msg, r); valid {
+			if s.Pid == 64172 {
+				log.Printf("[%d] %s = %s, [%s]", s.Pid, k, val[0], entry.msg)
+			}
+			switch k {
+			case "phase": // phase we reset table and bucket
+				s.State["table"] = "0"
+				fallthrough
+			case "table": // table we just reset bucket
+				s.State["bucket"] = "0"
+			default:
+				// nothing
+			}
+
 			s.State[k] = val[0]
 			updateProgress(s)
 		}
