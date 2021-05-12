@@ -1,10 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -33,7 +38,81 @@ var (
 	}, []string{
 		"path",
 	})
+
+	driveWrites = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "drive_writes",
+		Help: "drive writes per second, mb",
+	}, []string{
+		"device",
+	})
+
+	driveReads = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "drive_reads",
+		Help: "drive reads per second, mb",
+	}, []string{
+		"device",
+	})
 )
+
+// https://www.kernel.org/doc/html/latest/block/stat.html
+type DriveStats struct {
+	readIOs      int64 // requests
+	readMerges   int64 // requests
+	readSectors  int64 // sectors
+	readTicks    int64 // ms
+	writeIOs     int64 // requests
+	writeMerges  int64 //requests
+	writeSectors int64 //sectors
+	writeTicks   int64 // ms
+	inFlight     int64 // requests
+	ioTicks      int64 // ms
+	waitQueue    int64 // ms
+	//discardIOs    int64 // requests
+	//discardMerges int64 // requests
+	//discardTicks  int64 // ms
+	//flushIOs      int64 // requests
+	//flushTicks    int64 // ms
+}
+
+var mountStats = map[string]*DriveStats{}
+var numberRegex = regexp.MustCompile(`\d+`)
+
+func monitorDrives(dev string) {
+	fname := fmt.Sprintf("/sys/block/%s/stat", dev)
+	b, err := os.ReadFile(fname)
+	if err != nil {
+		return
+	}
+
+	vals := numberRegex.FindAllString(string(b), -1)
+	if len(vals) < 11 {
+		return
+	}
+
+	stats := &DriveStats{}
+	stats.readIOs, _ = strconv.ParseInt(vals[1], 10, 64)
+	stats.readMerges, _ = strconv.ParseInt(vals[2], 10, 64)
+	stats.readSectors, _ = strconv.ParseInt(vals[3], 10, 64)
+	stats.readTicks, _ = strconv.ParseInt(vals[4], 10, 64)
+	stats.writeIOs, _ = strconv.ParseInt(vals[5], 10, 64)
+	stats.writeMerges, _ = strconv.ParseInt(vals[6], 10, 64)
+	stats.writeSectors, _ = strconv.ParseInt(vals[7], 10, 64)
+	stats.writeTicks, _ = strconv.ParseInt(vals[8], 10, 64)
+	stats.inFlight, _ = strconv.ParseInt(vals[9], 10, 64)
+	stats.ioTicks, _ = strconv.ParseInt(vals[10], 10, 64)
+	stats.waitQueue, _ = strconv.ParseInt(vals[11], 10, 64)
+
+	if previous, exists := mountStats[dev]; exists {
+		// reads/writes are in UNIX 512-byte sectors
+		writesBytes := (stats.writeSectors - previous.writeSectors) * 512
+		readsBytes := (stats.readSectors - previous.readSectors) * 512
+
+		driveWrites.WithLabelValues(dev).Add(float64(writesBytes))
+		driveReads.WithLabelValues(dev).Add(float64(readsBytes))
+	}
+
+	mountStats[dev] = stats
+}
 
 func validatePaths(paths []string) []string {
 	var validPaths []string
@@ -49,11 +128,52 @@ func validatePaths(paths []string) []string {
 	return validPaths
 }
 
+var driveRegex = regexp.MustCompile(`/dev/(\D{3})\d+`)
+
+func pathToDevice(path string) (string, error) {
+	o, err := exec.Command("/usr/bin/df", "-h", path).Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	rows := strings.Split(string(o), "\n")
+	// first row is header, second is data
+	if len(rows) < 1 {
+		return "", fmt.Errorf("unexpected output from df")
+	}
+
+	mount := strings.Split(rows[1], " ")[0]
+
+	m := driveRegex.FindStringSubmatch(mount)
+	if len(m) < 2 {
+		return "", fmt.Errorf("unexpected output from df")
+	}
+
+	log.Printf("Mapped '%s' => '%s'", path, m[1])
+
+	return m[1], nil
+}
+
 func startDriveMonitoring(cfg *MonitorConfig) {
 
 	// monitor temp paths
 	go func(p []string) {
+		var mounts []string
+		for _, v := range p {
+			mount, err := pathToDevice(v)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			mounts = append(mounts, mount)
+		}
+
 		for {
+			for _, v := range mounts {
+				monitorDrives(v)
+			}
+
 			for _, v := range p {
 				var stat unix.Statfs_t
 				err := unix.Statfs(v, &stat)
@@ -85,4 +205,8 @@ func startDriveMonitoring(cfg *MonitorConfig) {
 			time.Sleep(slowRate)
 		}
 	}(validatePaths(append(cfg.FinalPaths, cfg.StagingPaths...)))
+
+	// go func(p []string){
+
+	// }()
 }

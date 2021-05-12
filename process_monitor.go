@@ -49,6 +49,7 @@ func monitorProcess(pid int) {
 		}
 
 		go func(pid int) {
+			retries := 0
 			r := bufio.NewReader(r)
 			// seek to the end of the buffer so we don't replay/dupe data
 			// if the stdout is redirected to a file or something
@@ -61,7 +62,13 @@ func monitorProcess(pid int) {
 					}
 					if err != nil {
 						log.Printf("Error reading from '%d': %+v", pid, err)
-						return
+						if retries > 5 {
+							return
+						}
+						// try again in a bit
+						time.Sleep(30 * time.Second)
+						retries++
+						continue
 					}
 
 					procChannel <- logEntry{msg: s, pid: pid}

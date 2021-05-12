@@ -45,7 +45,7 @@ var processors = map[string][]*regexp.Regexp{
 	"bucket":     []*regexp.Regexp{regexp.MustCompile(`.*Bucket (\d+)`)},
 	"temp_drive": []*regexp.Regexp{regexp.MustCompile(`Starting plotting progress into temporary dirs: (.*) and`)},
 }
-
+var debugPid = 2491846
 var runCounter = regexp.MustCompile(`Total time = (\d+)`)
 var phaseTime = regexp.MustCompile(`Time for phase (\d) = (\d+)`)
 var copyTime = regexp.MustCompile(`Copy time = (\d+)`)
@@ -144,7 +144,7 @@ func updateProgress(ps *PlotterState) {
 		progress = ((pi - 1) * 30) + ((ti / 7) * 30) + (bi/bsi)*4.28571428571
 	}
 
-	if ps.Pid == 147814 {
+	if ps.Pid == debugPid {
 		log.Printf("[%d] %f", ps.Pid, progress)
 	}
 
@@ -173,7 +173,7 @@ func phaseChanged(ps *PlotterState, phase string, duration int) {
 func (s *PlotterState) Update(entry *logEntry) {
 	for k, r := range processors {
 		if val, valid := checkRegexes(entry.msg, r); valid {
-			if s.Pid == 147814 {
+			if s.Pid == debugPid {
 				log.Printf("[%d] %s = %s, [%s]", s.Pid, k, val[0], entry.msg)
 			}
 			switch k {
