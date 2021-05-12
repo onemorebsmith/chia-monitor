@@ -37,7 +37,7 @@ var processors = map[string]*regexp.Regexp{
 	"maxRam":     regexp.MustCompile(`Buffer size is: (\d+)MiB`),
 	"bucketSize": regexp.MustCompile(`Using (\d+) buckets`),
 	"phase":      regexp.MustCompile(`.*Starting phase (\d)/*.`),
-	"table":      regexp.MustCompile(`.*table (\d)`),
+	"table":      regexp.MustCompile(`.*[table|tables] (\d)`),
 	"bucket":     regexp.MustCompile(`.*Bucket (\d+)`),
 	"temp_drive": regexp.MustCompile(`Starting plotting progress into temporary dirs: (.*) and`),
 }
@@ -45,6 +45,7 @@ var processors = map[string]*regexp.Regexp{
 var runCounter = regexp.MustCompile(`Total time = (\d+)`)
 var phaseTime = regexp.MustCompile(`Time for phase (\d) = (\d+)`)
 var copyTime = regexp.MustCompile(`Copy time = (\d+)`)
+var compressPhase = regexp.MustCompile(`Compressing tables (\d+)`)
 
 var phaseTimings = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	Name: "phase_timings",
@@ -146,6 +147,11 @@ func (s *PlotterState) Update(entry *logEntry) {
 		dur, _ := strconv.Atoi(val[1])
 		phaseChanged(s, val[0], dur)
 	}
+
+	// if val, valid := checkRegex(entry.msg, compressPhase); valid {
+	// 	s.State["table"] = val
+	// 	phaseChanged(s, "compress", 0)
+	// }
 
 	if val, valid := checkRegex(entry.msg, copyTime); valid {
 		dur, _ := strconv.Atoi(val[0])
