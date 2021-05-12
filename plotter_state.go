@@ -45,7 +45,7 @@ var processors = map[string][]*regexp.Regexp{
 	"bucket":     []*regexp.Regexp{regexp.MustCompile(`.*Bucket (\d+)`)},
 	"temp_drive": []*regexp.Regexp{regexp.MustCompile(`Starting plotting progress into temporary dirs: (.*) and`)},
 }
-var debugPid = 2491846
+var debugPid = 336480
 var runCounter = regexp.MustCompile(`Total time = (\d+)`)
 var phaseTime = regexp.MustCompile(`Time for phase (\d) = (\d+)`)
 var copyTime = regexp.MustCompile(`Copy time = (\d+)`)
@@ -148,13 +148,22 @@ func updateProgress(ps *PlotterState) {
 		log.Printf("[%d] %f", ps.Pid, progress)
 	}
 
+	for _, pp := range statesNames {
+		for _, tt := range tableNames {
+			// clear previous metrics or they'll continue to send
+			plotterState.DeleteLabelValues(pid, pp, tt)
+		}
+	}
+
+	plotterState.WithLabelValues(pid, p, t).Set(progress)
 	plotterProgress.WithLabelValues(pid).Set(progress)
 }
 
+var statesNames = []string{"1", "2", "3", "4", "copy", "final", "init"}
+var tableNames = []string{"0", "1", "2", "3", "4", "5", "6", "7"}
+
 func phaseChanged(ps *PlotterState, phase string, duration int) {
 	ps.State["phase"] = phase
-	pid := fmt.Sprintf("%d", ps.Pid)
-	t := ps.State["table"]
 
 	tt := PhaseTime{
 		Phase:    phase,
@@ -165,7 +174,6 @@ func phaseChanged(ps *PlotterState, phase string, duration int) {
 	// phase times
 	ps.PhaseTimes = append(ps.PhaseTimes, tt)
 	phaseTimings.WithLabelValues(fmt.Sprintf("%d", ps.Pid), ps.Phase).Set(ps.Duration.Seconds())
-	plotterState.WithLabelValues(pid, phase, t).Set(1)
 
 	updateProgress(ps)
 }
