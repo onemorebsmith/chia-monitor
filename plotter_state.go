@@ -134,12 +134,17 @@ func updateProgress(ps *PlotterState) {
 			bsi = 128
 		}
 
+		if progress < 0 || progress > 100 {
+			log.Printf("[%d] Error determining progress %+v", ps.Pid, *ps)
+			return
+		}
+
 		// p4, t7, b 32/32
 		// bsi buckets = 1 table, 7 tables = 1 phase
-		progress = ((pi - 1) * 20) + ((ti / 7) * 20) + (bi/bsi)*2.85714285714
+		progress = ((pi - 1) * 30) + ((ti / 7) * 30) + (bi/bsi)*4.28571428571
 	}
 
-	if ps.Pid == 64172 {
+	if ps.Pid == 147814 {
 		log.Printf("[%d] %f", ps.Pid, progress)
 	}
 
@@ -168,7 +173,7 @@ func phaseChanged(ps *PlotterState, phase string, duration int) {
 func (s *PlotterState) Update(entry *logEntry) {
 	for k, r := range processors {
 		if val, valid := checkRegexes(entry.msg, r); valid {
-			if s.Pid == 64172 {
+			if s.Pid == 147814 {
 				log.Printf("[%d] %s = %s, [%s]", s.Pid, k, val[0], entry.msg)
 			}
 			switch k {
