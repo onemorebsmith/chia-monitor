@@ -28,7 +28,10 @@ func monitorProcess(pid int) {
 		// process entry doesn't exist already, create it and start monitoring
 		ps := &PlotterState{}
 		ps.Pid = pid
-		ps.State = map[string]string{}
+		ps.State = map[string]string{
+			"phase": "init",
+			"table": "0",
+		}
 		plotterStates[pid] = ps
 
 		proc, err := os.FindProcess(pid)
