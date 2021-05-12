@@ -1,10 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -26,22 +24,6 @@ var (
 	swapUsageGauge = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "chia_host_swap_usage",
 		Help: "The current swap usage for the host",
-	})
-
-	plotsFinished = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "plots_finished",
-		Help: "The number of process currently plotting",
-	})
-
-	plotterState = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "plotter_state",
-		Help: "Full plotter state breakdown",
-	}, []string{
-		"pid",
-		"phase",
-		"table",
-		// "bucket",
-		// "bucket_size",
 	})
 
 	// phaseTime = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -68,32 +50,24 @@ func recordMetrics() {
 		// give the program some time to settle/process before we start sending metrics
 		time.Sleep(30 * time.Second)
 		for {
-			completions := float64(0)
-			for _, v := range plotterStates {
-				p := v.State["phase"]
-				t := v.State["table"]
-				b := v.State["bucket"]
-				bs := v.State["bucketSize"]
+			// completions := float64(0)
+			// for _, v := range plotterStates {
 
-				pi, _ := strconv.ParseFloat(p, 64)
-				ti, _ := strconv.ParseFloat(t, 64)
-				bi, _ := strconv.ParseFloat(b, 64)
-				bsi, _ := strconv.ParseFloat(bs, 64)
+			// 	pi, _ := strconv.ParseFloat(p, 64)
+			// 	ti, _ := strconv.ParseFloat(t, 64)
+			// 	bi, _ := strconv.ParseFloat(b, 64)
+			// 	bsi, _ := strconv.ParseFloat(bs, 64)
 
-				// p4, t7, b 32/32
-				// (3 * 25) + (7/7) * 20 + (32/32) * 5 = 100
-				progress := ((pi - 1) * 20) + ((ti / 7) * 20) + (bi/bsi)*5
+			// 	// p4, t7, b 32/32
+			// 	// (3 * 25) + (7/7) * 20 + (32/32) * 5 = 100
+			// 	progress := ((pi - 1) * 20) + ((ti / 7) * 20) + (bi/bsi)*5
 
-				pid := fmt.Sprintf("%d", v.Pid)
-				//processVec.WithLabelValues(pid).Set(float64(p))
-				completions += float64(v.Completions)
+			// 	pid := fmt.Sprintf("%d", v.Pid)
+			// 	//processVec.WithLabelValues(pid).Set(float64(p))
+			// 	completions += float64(v.Completions)
 
-				plotterState.WithLabelValues(pid, p, t).Set(progress)
-
-				//phaseTime.WithLabelValues(pid, p).Inc()
-			}
-
-			plotsFinished.Set(completions)
+			// 	//phaseTime.WithLabelValues(pid, p).Inc()
+			// }
 
 			// processGauge.Set(float64(len(plotterStates)))
 

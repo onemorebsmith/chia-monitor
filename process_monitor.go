@@ -28,7 +28,9 @@ func monitorProcess(pid int) {
 		// process entry doesn't exist already, create it and start monitoring
 		ps := &PlotterState{}
 		ps.Pid = pid
-		ps.State = map[string]string{}
+		ps.State = map[string]string{
+			"phase": "init",
+		}
 		plotterStates[pid] = ps
 
 		proc, err := os.FindProcess(pid)
@@ -48,6 +50,9 @@ func monitorProcess(pid int) {
 
 		go func(pid int) {
 			r := bufio.NewReader(r)
+			// seek to the end of the buffer so we don't replay/dupe data
+			// if the stdout is redirected to a file or something
+			r.Discard(r.Size())
 			for {
 				for {
 					s, err := r.ReadString('\n')

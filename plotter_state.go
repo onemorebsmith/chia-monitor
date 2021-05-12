@@ -54,6 +54,29 @@ var phaseTimings = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	"phase",
 })
 
+var completionCounter = promauto.NewCounterVec(prometheus.CounterOpts{
+	Name: "plot_complete_counter",
+	Help: "Number of plots completed by the given pid",
+}, []string{
+	"pid",
+})
+
+var plotterState = promauto.NewGaugeVec(prometheus.GaugeOpts{
+	Name: "plotter_state",
+	Help: "Full plotter state breakdown",
+}, []string{
+	"pid",
+	"phase",
+	"table",
+})
+
+var plotterProgress = promauto.NewGaugeVec(prometheus.GaugeOpts{
+	Name: "plotter_progress",
+	Help: "Plotter progress %",
+}, []string{
+	"pid",
+})
+
 func checkRegex(s string, r *regexp.Regexp) ([]string, bool) {
 	if r.Match([]byte(s)) {
 		matches := r.FindStringSubmatch(s)
@@ -65,46 +88,77 @@ func checkRegex(s string, r *regexp.Regexp) ([]string, bool) {
 	return nil, false
 }
 
+func updateProgress(ps *PlotterState) {
+	pid := fmt.Sprintf("%d", ps.Pid)
+	p := ps.State["phase"]
+	t := ps.State["table"]
+	b := ps.State["bucket"]
+	bs := ps.State["bucketSize"]
+
+	progress := float64(0)
+	switch p {
+	case "final":
+		progress = 99
+	case "copy":
+		progress = 95
+	default:
+		pi, _ := strconv.ParseFloat(p, 64)
+		ti, _ := strconv.ParseFloat(t, 64)
+		bi, _ := strconv.ParseFloat(b, 64)
+		bsi, _ := strconv.ParseFloat(bs, 64)
+
+		// p4, t7, b 32/32
+		// (3 * 25) + (7/7) * 20 + (32/32) * 5 = 100
+		progress = ((pi - 1) * 20) + ((ti / 7) * 20) + (bi/bsi)*5
+	}
+
+	plotterProgress.WithLabelValues(pid).Set(progress)
+}
+
+func phaseChanged(ps *PlotterState, phase string, duration int) {
+	pid := fmt.Sprintf("%d", ps.Pid)
+	p := ps.State["phase"]
+	t := ps.State["table"]
+
+	tt := PhaseTime{
+		Phase:    phase,
+		Run:      ps.Completions,
+		Duration: time.Second * time.Duration(duration),
+	}
+
+	// phase times
+	ps.PhaseTimes = append(ps.PhaseTimes, tt)
+	phaseTimings.WithLabelValues(fmt.Sprintf("%d", ps.Pid), ps.Phase).Set(ps.Duration.Seconds())
+	plotterState.WithLabelValues(pid, p, t).Set(1)
+
+	updateProgress(ps)
+}
+
 func (s *PlotterState) Update(entry *logEntry) {
 	for k, r := range processors {
 		if val, valid := checkRegex(entry.msg, r); valid {
 			s.State[k] = val[0]
+			updateProgress(s)
 		}
 	}
 
 	if val, valid := checkRegex(entry.msg, phaseTime); valid {
 		dur, _ := strconv.Atoi(val[1])
-		ps := PhaseTime{
-			Phase:    val[0],
-			Run:      s.Completions,
-			Duration: time.Second * time.Duration(dur),
-		}
-		// phase times
-		s.PhaseTimes = append(s.PhaseTimes, ps)
-		phaseTimings.WithLabelValues(fmt.Sprintf("%d", s.Pid), ps.Phase).Set(ps.Duration.Seconds())
+		phaseChanged(s, val[0], dur)
 	}
 
 	if val, valid := checkRegex(entry.msg, copyTime); valid {
 		dur, _ := strconv.Atoi(val[0])
-		ps := PhaseTime{
-			Phase:    "copy",
-			Run:      s.Completions - 1, // copy happens after the run finshes
-			Duration: time.Second * time.Duration(dur),
-		}
-		s.PhaseTimes = append(s.PhaseTimes, ps)
-		phaseTimings.WithLabelValues(fmt.Sprintf("%d", s.Pid), ps.Phase).Set(ps.Duration.Seconds())
+		phaseChanged(s, "copy", dur)
 	}
 
 	if val, valid := checkRegex(entry.msg, runCounter); valid {
+		pid := fmt.Sprintf("%d", s.Pid)
 		dur, _ := strconv.Atoi(val[0])
-		ps := PhaseTime{
-			Phase:    "final",
-			Run:      s.Completions,
-			Duration: time.Second * time.Duration(dur),
-		}
+		phaseChanged(s, "final", dur)
+
 		s.Completions++
-		s.PhaseTimes = append(s.PhaseTimes, ps)
-		phaseTimings.WithLabelValues(fmt.Sprintf("%d", s.Pid), ps.Phase).Set(ps.Duration.Seconds())
+		completionCounter.WithLabelValues(pid).Inc()
 	}
 
 	s.State["last"] = entry.msg
