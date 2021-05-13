@@ -11,26 +11,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-type PhaseTime struct {
-	Phase    string
-	Run      int
-	Duration time.Duration
-}
-
 type PlotterState struct {
 	State       map[string]string
 	Pid         int
 	Completions int
-	PhaseTimes  []PhaseTime
-
-	Phase       string
-	Table       string
-	Bucket      string
-	PlotSz      int
-	BucketCount int
-	MaxRamMb    int
-	MaxThread   int
-	Duration    time.Duration
 }
 
 var processors = map[string][]*regexp.Regexp{
@@ -175,18 +159,11 @@ func phaseChanged(ps *PlotterState, phase string, duration int) {
 	plot_id := ps.State["plot_id"]
 	temp_drive := ps.State["temp_drive"]
 
-	tt := PhaseTime{
-		Phase:    phase,
-		Run:      ps.Completions,
-		Duration: time.Second * time.Duration(duration),
-	}
-
-	// phase times
-	ps.PhaseTimes = append(ps.PhaseTimes, tt)
+	durSec := (time.Second * time.Duration(duration)).Seconds()
 	if plot_id == "" || temp_drive == "" || phase == "" {
 		log.Printf("Skipping phase timing update to to incomplete info: %+v", *ps)
 	} else {
-		phaseTimings.WithLabelValues(fmt.Sprintf("%d", ps.Pid), plot_id, temp_drive, phase).Set(ps.Duration.Seconds())
+		phaseTimings.WithLabelValues(fmt.Sprintf("%d", ps.Pid), plot_id, temp_drive, phase).Set(durSec)
 	}
 
 	updateProgress(ps)
