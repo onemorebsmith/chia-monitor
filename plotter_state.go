@@ -58,8 +58,9 @@ var phaseTimings = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	Help: "The number of process currently plotting",
 }, []string{
 	"pid",
-	"phase",
 	"id",
+	"drive",
+	"phase",
 })
 
 // value is the timestamp when finished
@@ -172,6 +173,7 @@ func phaseChanged(ps *PlotterState, phase string, duration int) {
 	ps.State["phase"] = phase
 
 	plot_id := ps.State["plot_id"]
+	temp_drive := ps.State["temp_drive"]
 
 	tt := PhaseTime{
 		Phase:    phase,
@@ -181,11 +183,11 @@ func phaseChanged(ps *PlotterState, phase string, duration int) {
 
 	// phase times
 	ps.PhaseTimes = append(ps.PhaseTimes, tt)
-	if plot_id == "" {
-		plot_id = "unknown"
+	if plot_id == "" || temp_drive == "" || phase == "" {
+		log.Printf("Skipping phase timing update to to incomplete info: %+v", *ps)
+	} else {
+		phaseTimings.WithLabelValues(fmt.Sprintf("%d", ps.Pid), plot_id, temp_drive, phase).Set(ps.Duration.Seconds())
 	}
-
-	phaseTimings.WithLabelValues(fmt.Sprintf("%d", ps.Pid), ps.Phase, plot_id).Set(ps.Duration.Seconds())
 
 	updateProgress(ps)
 }
