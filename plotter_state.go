@@ -34,19 +34,21 @@ type PlotterState struct {
 }
 
 var processors = map[string][]*regexp.Regexp{
-	"plotSize":   []*regexp.Regexp{regexp.MustCompile(`Plot size is: (\d+)`)},
-	"maxRam":     []*regexp.Regexp{regexp.MustCompile(`Buffer size is: (\d+)MiB`)},
-	"bucketSize": []*regexp.Regexp{regexp.MustCompile(`Using (\d+) buckets`)},
-	"phase":      []*regexp.Regexp{regexp.MustCompile(`.*Starting phase (\d)/*.`)},
-	"table": []*regexp.Regexp{
+	"plotSize":   {regexp.MustCompile(`Plot size is: (\d+)`)},
+	"maxRam":     {regexp.MustCompile(`Buffer size is: (\d+)MiB`)},
+	"bucketSize": {regexp.MustCompile(`Using (\d+) buckets`)},
+	"phase":      {regexp.MustCompile(`.*Starting phase (\d)/*.`)},
+	"table": {
 		regexp.MustCompile(`Computing table (\d+)`),
 		regexp.MustCompile(`Compressing tables (\d+)`),
 	},
-	"bucket":     []*regexp.Regexp{regexp.MustCompile(`.*Bucket (\d+)`)},
-	"temp_drive": []*regexp.Regexp{regexp.MustCompile(`Starting plotting progress into temporary dirs: (.*) and`)},
+	"bucket":     {regexp.MustCompile(`.*Bucket (\d+)`)},
+	"temp_drive": {regexp.MustCompile(`Starting plotting progress into temporary dirs: (.*) and`)},
+	"plot_id":    {regexp.MustCompile(`ID: (\w+)`)},
 }
 var debugPid = 336480
-var runCounter = regexp.MustCompile(`Total time = (\d+)`)
+
+var runCounter = regexp.MustCompile(`Total time = (\d+).* (\w+ \w+ \d{1,2} \d{2}:\d{2}:\d{2} \d{4})`)
 var phaseTime = regexp.MustCompile(`Time for phase (\d) = (\d+)`)
 var copyTime = regexp.MustCompile(`Copy time = (\d+)`)
 var compressPhase = regexp.MustCompile(`Compressing tables (\d+)`)
@@ -57,13 +59,17 @@ var phaseTimings = promauto.NewGaugeVec(prometheus.GaugeOpts{
 }, []string{
 	"pid",
 	"phase",
+	"id",
 })
 
-var completionCounter = promauto.NewCounterVec(prometheus.CounterOpts{
-	Name: "plot_complete_counter",
+// value is the timestamp when finished
+var completionMarker = promauto.NewGaugeVec(prometheus.GaugeOpts{
+	Name: "completed_plots",
 	Help: "Number of plots completed by the given pid",
 }, []string{
 	"pid",
+	"drive",
+	"id",
 })
 
 var plotterState = promauto.NewGaugeVec(prometheus.GaugeOpts{
@@ -165,6 +171,8 @@ var tableNames = []string{"0", "1", "2", "3", "4", "5", "6", "7"}
 func phaseChanged(ps *PlotterState, phase string, duration int) {
 	ps.State["phase"] = phase
 
+	plot_id := ps.State["plot_id"]
+
 	tt := PhaseTime{
 		Phase:    phase,
 		Run:      ps.Completions,
@@ -173,7 +181,11 @@ func phaseChanged(ps *PlotterState, phase string, duration int) {
 
 	// phase times
 	ps.PhaseTimes = append(ps.PhaseTimes, tt)
-	phaseTimings.WithLabelValues(fmt.Sprintf("%d", ps.Pid), ps.Phase).Set(ps.Duration.Seconds())
+	if plot_id == "" {
+		plot_id = "unknown"
+	}
+
+	phaseTimings.WithLabelValues(fmt.Sprintf("%d", ps.Pid), ps.Phase, plot_id).Set(ps.Duration.Seconds())
 
 	updateProgress(ps)
 }
@@ -215,12 +227,17 @@ func (s *PlotterState) Update(entry *logEntry) {
 	}
 
 	if val, valid := checkRegex(entry.msg, runCounter); valid {
-		pid := fmt.Sprintf("%d", s.Pid)
-		dur, _ := strconv.Atoi(val[0])
-		phaseChanged(s, "final", dur)
+		if len(val) >= 2 {
+			id := s.State["plot_id"]
+			temp := s.State["temp_drive"]
+			timestamp, _ := time.Parse(time.ANSIC, val[1])
+			pid := fmt.Sprintf("%d", s.Pid)
+			dur, _ := strconv.Atoi(val[0])
+			phaseChanged(s, "final", dur)
 
-		s.Completions++
-		completionCounter.WithLabelValues(pid).Inc()
+			completionMarker.WithLabelValues(pid, temp, id).Set(float64(timestamp.Unix()))
+			s.Completions++
+		}
 	}
 
 	s.State["last"] = entry.msg
