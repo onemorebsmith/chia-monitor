@@ -2,3 +2,4 @@ __debug_bin
 chia_monitor
 stdout_redir
 config.yaml
+monitor.log

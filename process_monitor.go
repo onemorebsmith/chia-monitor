@@ -9,11 +9,13 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 type PlotterStates map[int]*PlotterState
 
+var stateLock = sync.Mutex{}
 var plotterStates = PlotterStates{}
 
 type logEntry struct {
@@ -25,6 +27,7 @@ type logEntry struct {
 var procChannel = make(chan logEntry)
 
 func monitorProcess(pid int) {
+	stateLock.Lock()
 	if _, found := plotterStates[pid]; !found {
 		// process entry doesn't exist already, create it and start monitoring
 		ps := &PlotterState{}
@@ -34,6 +37,7 @@ func monitorProcess(pid int) {
 			"table": "0",
 		}
 		plotterStates[pid] = ps
+		stateLock.Unlock()
 
 		proc, err := os.FindProcess(pid)
 		if err != nil {
@@ -77,6 +81,8 @@ func monitorProcess(pid int) {
 				time.Sleep(5 * time.Second)
 			}
 		}(pid)
+	} else {
+		stateLock.Unlock()
 	}
 }
 
@@ -85,12 +91,11 @@ func startProcessMonitor() {
 		for {
 			s := <-procChannel
 
+			stateLock.Lock()
 			ps, found := plotterStates[s.pid]
+			stateLock.Unlock()
 			if !found {
-				ps = &PlotterState{}
-				ps.Pid = s.pid
-				ps.State = map[string]string{}
-				plotterStates[s.pid] = ps
+				continue
 			}
 
 			ps.Update(&s)

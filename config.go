@@ -6,10 +6,16 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type MonitorConfig struct {
-	TempPaths    []string `yaml:"TempPaths"`
+type UhaulConfig struct {
 	StagingPaths []string `yaml:"StagingPaths"`
 	FinalPaths   []string `yaml:"FinalPaths"`
+}
+
+type MonitorConfig struct {
+	TempPaths    []string    `yaml:"TempPaths"`
+	StagingPaths []string    `yaml:"StagingPaths"`
+	FinalPaths   []string    `yaml:"FinalPaths"`
+	UhaulConfig  UhaulConfig `yaml:"UHaul"`
 }
 
 func parseConfig(path string) (MonitorConfig, error) {

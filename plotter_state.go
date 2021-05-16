@@ -5,6 +5,7 @@ import (
 	"log"
 	"regexp"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -15,6 +16,7 @@ type PlotterState struct {
 	State       map[string]string
 	Pid         int
 	Completions int
+	lock        sync.Mutex
 }
 
 var processors = map[string][]*regexp.Regexp{
@@ -35,7 +37,6 @@ var debugPid = 336480
 var runCounter = regexp.MustCompile(`Total time = (\d+).* (\w+ \w+ \d{1,2} \d{2}:\d{2}:\d{2} \d{4})`)
 var phaseTime = regexp.MustCompile(`Time for phase (\d) = (\d+)`)
 var copyTime = regexp.MustCompile(`Copy time = (\d+)`)
-var compressPhase = regexp.MustCompile(`Compressing tables (\d+)`)
 
 var phaseTimings = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	Name: "phase_timings",
@@ -170,6 +171,9 @@ func phaseChanged(ps *PlotterState, phase string, duration int) {
 }
 
 func (s *PlotterState) Update(entry *logEntry) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	for k, r := range processors {
 		if val, valid := checkRegexes(entry.msg, r); valid {
 			if s.Pid == debugPid {
