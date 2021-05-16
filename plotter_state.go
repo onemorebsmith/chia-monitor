@@ -186,13 +186,17 @@ func (s *PlotterState) Update(entry *logEntry) {
 			}
 
 			s.State[k] = val[0]
-			updateProgress(s)
+			if entry.live {
+				updateProgress(s)
+			}
 		}
 	}
 
 	if val, valid := checkRegex(entry.msg, phaseTime); valid {
 		dur, _ := strconv.Atoi(val[1])
-		phaseChanged(s, val[0], dur)
+		if entry.live {
+			phaseChanged(s, val[0], dur)
+		}
 	}
 
 	// if val, valid := checkRegex(entry.msg, compressPhase); valid {
@@ -202,11 +206,13 @@ func (s *PlotterState) Update(entry *logEntry) {
 
 	if val, valid := checkRegex(entry.msg, copyTime); valid {
 		dur, _ := strconv.Atoi(val[0])
-		phaseChanged(s, "copy", dur)
+		if entry.live {
+			phaseChanged(s, "copy", dur)
+		}
 	}
 
 	if val, valid := checkRegex(entry.msg, runCounter); valid {
-		if len(val) >= 2 {
+		if len(val) >= 2 && entry.live {
 			id := s.State["plot_id"]
 			temp := s.State["temp_drive"]
 			timestamp, _ := time.Parse(time.ANSIC, val[1])

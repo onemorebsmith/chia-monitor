@@ -17,8 +17,9 @@ type PlotterStates map[int]*PlotterState
 var plotterStates = PlotterStates{}
 
 type logEntry struct {
-	pid int
-	msg string
+	pid  int
+	msg  string
+	live bool
 }
 
 var procChannel = make(chan logEntry)
@@ -52,9 +53,7 @@ func monitorProcess(pid int) {
 		go func(pid int) {
 			retries := 0
 			r := bufio.NewReader(r)
-			// seek to the end of the buffer so we don't replay/dupe data
-			// if the stdout is redirected to a file or something
-			r.Discard(r.Size())
+			live := false
 			for {
 				for {
 					s, err := r.ReadString('\n')
@@ -72,8 +71,9 @@ func monitorProcess(pid int) {
 						continue
 					}
 
-					procChannel <- logEntry{msg: s, pid: pid}
+					procChannel <- logEntry{msg: s, pid: pid, live: live}
 				}
+				live = true // we're at the latest data, start sending events
 				time.Sleep(5 * time.Second)
 			}
 		}(pid)
