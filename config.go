@@ -11,11 +11,20 @@ type UhaulConfig struct {
 	FinalPaths   []string `yaml:"FinalPaths"`
 }
 
+type PlotterConfig struct {
+	TempPath         string `yaml:"path"`
+	FinalPath        string `yaml:"finalPath"`
+	Ram              int    `yaml:"ram"`
+	Tag              string `yaml:"tag"`
+	StageConcurrency int    `yaml:"maxPerPhase"`
+}
+
 type MonitorConfig struct {
-	TempPaths    []string    `yaml:"TempPaths"`
-	StagingPaths []string    `yaml:"StagingPaths"`
-	FinalPaths   []string    `yaml:"FinalPaths"`
-	UhaulConfig  UhaulConfig `yaml:"UHaul"`
+	TempPaths    []string        `yaml:"TempPaths"`
+	StagingPaths []string        `yaml:"StagingPaths"`
+	FinalPaths   []string        `yaml:"FinalPaths"`
+	UhaulConfig  UhaulConfig     `yaml:"UHaul"`
+	PathConfig   []PlotterConfig `yaml:"Plotter"`
 }
 
 func parseConfig(path string) (MonitorConfig, error) {

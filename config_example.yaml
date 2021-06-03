@@ -12,3 +12,10 @@ UHaul:
     - /media/ssd/plot_staging
   FinalPaths:
     - /media/remote/ext2/plots
+
+Manager:
+  - path: /media/ext/plot_staging
+    maxPerPhase: 1
+  - path: /media/ssd/plot_staging
+    maxPerPhase: 2
+

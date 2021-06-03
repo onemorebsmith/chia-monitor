@@ -48,7 +48,7 @@ func monitorProcess(pid int) {
 
 		fd := fmt.Sprintf("/proc/%d/fd/1", pid)
 		log.Printf("Opening '%s' to for monitoring", fd)
-		r, err := os.Open(fmt.Sprintf("/proc/%d/fd/1", pid))
+		ps.fd1, err = os.Open(fmt.Sprintf("/proc/%d/fd/1", pid))
 		if err != nil {
 			log.Println(err)
 			return
@@ -56,7 +56,7 @@ func monitorProcess(pid int) {
 
 		go func(pid int) {
 			retries := 0
-			r := bufio.NewReader(r)
+			r := bufio.NewReader(ps.fd1)
 			live := false
 			for {
 				for {
@@ -98,6 +98,7 @@ func startProcessMonitor() {
 				continue
 			}
 
+			ps.lastSeen = time.Now()
 			ps.Update(&s)
 		}
 	}()
@@ -114,6 +115,17 @@ func startProcessMonitor() {
 				monitorProcess(pid)
 			}
 		}
+
+		stateLock.Lock()
+		for v, s := range plotterStates {
+			if time.Since(s.lastSeen) > time.Duration(60*time.Minute) {
+				log.Printf("[Monitor] Stopping monitor on pid %d due to activity", v)
+				// cleanup
+				s.fd1.Close()
+				delete(plotterStates, v)
+			}
+		}
+		stateLock.Unlock()
 
 		time.Sleep(30 * time.Second)
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"regexp"
 	"strconv"
 	"sync"
@@ -17,6 +18,8 @@ type PlotterState struct {
 	Pid         int
 	Completions int
 	lock        sync.Mutex
+	lastSeen    time.Time
+	fd1         *os.File
 }
 
 var processors = map[string][]*regexp.Regexp{
@@ -72,6 +75,7 @@ var plotterProgress = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	Help: "Plotter progress %",
 }, []string{
 	"pid",
+	"path",
 })
 
 func checkRegexes(s string, reg []*regexp.Regexp) ([]string, bool) {
@@ -101,6 +105,7 @@ func updateProgress(ps *PlotterState) {
 	t := ps.State["table"]
 	b := ps.State["bucket"]
 	bs := ps.State["bucketSize"]
+	pp := ps.State["temp_drive"]
 
 	progress := float64(0)
 	switch p {
@@ -127,7 +132,7 @@ func updateProgress(ps *PlotterState) {
 		}
 
 		if progress < 0 || progress > 100 {
-			log.Printf("[%d] Error determining progress %+v", ps.Pid, *ps)
+			log.Printf("[%d] Error determining progress %+v", ps.Pid, ps.State)
 			return
 		}
 
@@ -148,7 +153,7 @@ func updateProgress(ps *PlotterState) {
 	}
 
 	plotterState.WithLabelValues(pid, p, t).Set(progress)
-	plotterProgress.WithLabelValues(pid).Set(progress)
+	plotterProgress.WithLabelValues(pid, pp).Set(progress)
 }
 
 var statesNames = []string{"1", "2", "3", "4", "copy", "final", "init"}
