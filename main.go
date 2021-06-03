@@ -10,6 +10,8 @@ import (
 var fastRate = 15 * time.Second
 var slowRate = 1 * time.Minute
 
+var processMonitor *ProcessMonitor
+
 func main() {
 	logFile, err := os.OpenFile("monitor.log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
@@ -26,8 +28,10 @@ func main() {
 
 	go startMemMonitor()
 	go startDriveMonitoring(&cfg)
-	go startProcessMonitor()
-	go startUhaul(cfg.UhaulConfig)
+	processMonitor = StartProcessMonitor()
+
+	go startPlotter(cfg.PlotterConfig, cfg.ChiaPath)
+	//go startUhaul(cfg.UhaulConfig)
 	startRecording()
 
 	for {

@@ -13,10 +13,12 @@ import (
 	"time"
 )
 
-type PlotterStates map[int]*PlotterState
+type ProcessMonitor struct {
+	stateLock     *sync.Mutex
+	plotterStates PlotterStates
+}
 
-var stateLock = sync.Mutex{}
-var plotterStates = PlotterStates{}
+type PlotterStates map[int]*PlotterState
 
 type logEntry struct {
 	pid  int
@@ -26,9 +28,20 @@ type logEntry struct {
 
 var procChannel = make(chan logEntry)
 
-func monitorProcess(pid int) {
-	stateLock.Lock()
-	if _, found := plotterStates[pid]; !found {
+func StartProcessMonitor() *ProcessMonitor {
+	monitor := &ProcessMonitor{
+		stateLock:     &sync.Mutex{},
+		plotterStates: PlotterStates{},
+	}
+
+	go monitor.startProcessMonitor()
+
+	return monitor
+}
+
+func (p *ProcessMonitor) monitorProcess(pid int) {
+	p.stateLock.Lock()
+	if _, found := p.plotterStates[pid]; !found {
 		// process entry doesn't exist already, create it and start monitoring
 		ps := &PlotterState{}
 		ps.Pid = pid
@@ -36,27 +49,27 @@ func monitorProcess(pid int) {
 			"phase": "init",
 			"table": "0",
 		}
-		plotterStates[pid] = ps
-		stateLock.Unlock()
+		ps.lastSeen = time.Now()
+		p.plotterStates[pid] = ps
+		p.stateLock.Unlock()
 
 		proc, err := os.FindProcess(pid)
 		if err != nil {
 			log.Println(err)
 			return
 		}
-		_ = proc
-
-		fd := fmt.Sprintf("/proc/%d/fd/1", pid)
-		log.Printf("Opening '%s' to for monitoring", fd)
-		ps.fd1, err = os.Open(fmt.Sprintf("/proc/%d/fd/1", pid))
-		if err != nil {
-			log.Println(err)
-			return
-		}
 
 		go func(pid int) {
+			path := fmt.Sprintf("/proc/%d/fd/1", proc.Pid)
+			log.Printf("Opening '%s' to for monitoring", path)
+			fd, err := os.Open(fmt.Sprintf("/proc/%d/fd/1", proc.Pid))
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
 			retries := 0
-			r := bufio.NewReader(ps.fd1)
+			r := bufio.NewReader(fd)
 			live := false
 			for {
 				for {
@@ -70,7 +83,16 @@ func monitorProcess(pid int) {
 							return
 						}
 						// try again in a bit
-						time.Sleep(30 * time.Second)
+						time.Sleep(5 * time.Second)
+
+						// retry opening & reset the buffer
+						fd.Close()
+						fd, err = os.Open(path)
+						if err != nil {
+							log.Println(err)
+						}
+						r = bufio.NewReader(fd)
+
 						retries++
 						continue
 					}
@@ -82,18 +104,18 @@ func monitorProcess(pid int) {
 			}
 		}(pid)
 	} else {
-		stateLock.Unlock()
+		p.stateLock.Unlock()
 	}
 }
 
-func startProcessMonitor() {
+func (p *ProcessMonitor) startProcessMonitor() {
 	go func() { // monitors plotter states
 		for {
 			s := <-procChannel
 
-			stateLock.Lock()
-			ps, found := plotterStates[s.pid]
-			stateLock.Unlock()
+			p.stateLock.Lock()
+			ps, found := p.plotterStates[s.pid]
+			p.stateLock.Unlock()
 			if !found {
 				continue
 			}
@@ -106,27 +128,30 @@ func startProcessMonitor() {
 	for {
 		o, err := exec.Command("/usr/bin/pgrep", "-f", "chia plots create").Output()
 		if err != nil {
-			log.Fatal(err)
+			if err.Error() != "exit status 1" { // this means no processes
+				log.Printf("[Monitor] Error fetching processes: %v", err)
+			}
+			goto wait
 		}
 
 		for _, s := range strings.Split(string(o), "\n") {
 			pid, _ := strconv.Atoi(s)
 			if pid > 0 {
-				monitorProcess(pid)
+				p.monitorProcess(pid)
 			}
 		}
 
-		stateLock.Lock()
-		for v, s := range plotterStates {
+		p.stateLock.Lock()
+		for v, s := range p.plotterStates {
 			if time.Since(s.lastSeen) > time.Duration(60*time.Minute) {
 				log.Printf("[Monitor] Stopping monitor on pid %d due to activity", v)
 				// cleanup
-				s.fd1.Close()
-				delete(plotterStates, v)
+				//s.fd1.Close()
+				delete(p.plotterStates, v)
 			}
 		}
-		stateLock.Unlock()
-
+		p.stateLock.Unlock()
+	wait:
 		time.Sleep(30 * time.Second)
 	}
 }

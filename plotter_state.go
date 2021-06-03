@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"regexp"
 	"strconv"
 	"sync"
@@ -19,7 +18,6 @@ type PlotterState struct {
 	Completions int
 	lock        sync.Mutex
 	lastSeen    time.Time
-	fd1         *os.File
 }
 
 var processors = map[string][]*regexp.Regexp{
@@ -139,6 +137,7 @@ func updateProgress(ps *PlotterState) {
 		// p4, t7, b 32/32
 		// bsi buckets = 1 table, 7 tables = 1 phase
 		progress = ((pi - 1) * 30) + ((ti / 7) * 30) + (bi/bsi)*4.28571428571
+		ps.State["progress"] = fmt.Sprintf("%f", progress)
 	}
 
 	if ps.Pid == debugPid {
