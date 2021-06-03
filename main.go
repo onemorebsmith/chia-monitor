@@ -31,7 +31,7 @@ func main() {
 	processMonitor = StartProcessMonitor()
 
 	go startPlotter(cfg.PlotterConfig, cfg.ChiaPath)
-	//go startUhaul(cfg.UhaulConfig)
+	go startUhaul(cfg.UhaulConfig)
 	startRecording()
 
 	for {

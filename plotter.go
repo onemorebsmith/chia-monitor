@@ -100,10 +100,12 @@ func monitor(cfgMap map[string]PlotterConfig, chiaPath string) {
 				//path.Match(pattern string, name string)
 				states[drive] = append(states[drive], v)
 			}
-			
+
 		}
 
 		pm.stateLock.Unlock()
+
+		log.Println("==================================")
 
 		for k, cfg := range cfgMap {
 			byPhase := map[string][]*PlotterState{}
@@ -112,7 +114,7 @@ func monitor(cfgMap map[string]PlotterConfig, chiaPath string) {
 			for _, v := range plotters {
 				phase := v.State["phase"]
 				prog := v.State["progress"]
-				log.Printf("\t%d state: %s, progress: %s/100", v.Pid, phase, prog)
+				log.Printf("\t%d state: %s, progress: %s", v.Pid, phase, prog)
 				byPhase[phase] = append(byPhase[phase], v)
 			}
 			if len(plotters) < cfg.StageConcurrency {

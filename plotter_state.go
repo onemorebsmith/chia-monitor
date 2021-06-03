@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"sync"
@@ -66,14 +67,7 @@ var plotterState = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	"pid",
 	"phase",
 	"table",
-})
-
-var plotterProgress = promauto.NewGaugeVec(prometheus.GaugeOpts{
-	Name: "plotter_progress",
-	Help: "Plotter progress %",
-}, []string{
-	"pid",
-	"path",
+	"tag",
 })
 
 func checkRegexes(s string, reg []*regexp.Regexp) ([]string, bool) {
@@ -97,6 +91,8 @@ func checkRegex(s string, r *regexp.Regexp) ([]string, bool) {
 	return nil, false
 }
 
+var tagRegex = regexp.MustCompile(`(\w+)_\d+`)
+
 func updateProgress(ps *PlotterState) {
 	pid := fmt.Sprintf("%d", ps.Pid)
 	p := ps.State["phase"]
@@ -104,6 +100,12 @@ func updateProgress(ps *PlotterState) {
 	b := ps.State["bucket"]
 	bs := ps.State["bucketSize"]
 	pp := ps.State["temp_drive"]
+
+	tag := ""
+	tempDir := filepath.Base(pp)
+	if matches, valid := checkRegex(tempDir, tagRegex); valid {
+		tag = matches[0]
+	}
 
 	progress := float64(0)
 	switch p {
@@ -147,12 +149,11 @@ func updateProgress(ps *PlotterState) {
 	for _, pp := range statesNames {
 		for _, tt := range tableNames {
 			// clear previous metrics or they'll continue to send
-			plotterState.DeleteLabelValues(pid, pp, tt)
+			plotterState.DeleteLabelValues(pid, pp, tt, tag)
 		}
 	}
 
-	plotterState.WithLabelValues(pid, p, t).Set(progress)
-	plotterProgress.WithLabelValues(pid, pp).Set(progress)
+	plotterState.WithLabelValues(pid, p, t, tag).Set(progress)
 }
 
 var statesNames = []string{"1", "2", "3", "4", "copy", "final", "init"}

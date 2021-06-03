@@ -61,7 +61,7 @@ func (p *ProcessMonitor) monitorProcess(pid int) {
 
 		go func(pid int) {
 			path := fmt.Sprintf("/proc/%d/fd/1", proc.Pid)
-			log.Printf("Opening '%s' to for monitoring", path)
+			log.Printf("[Monitor] Opening '%s' to for monitoring", path)
 			fd, err := os.Open(fmt.Sprintf("/proc/%d/fd/1", proc.Pid))
 			if err != nil {
 				log.Println(err)
@@ -78,8 +78,12 @@ func (p *ProcessMonitor) monitorProcess(pid int) {
 						break
 					}
 					if err != nil {
-						log.Printf("Error reading from '%d': %+v", pid, err)
+						log.Printf("Monitor] Error reading from '%d': %+v", pid, err)
 						if retries > 5 {
+							log.Printf("[Monitor] Failed to read from pid %d, %+v", pid, err)
+							p.stateLock.Lock()
+							delete(p.plotterStates, pid)
+							p.stateLock.Unlock()
 							return
 						}
 						// try again in a bit
@@ -143,10 +147,8 @@ func (p *ProcessMonitor) startProcessMonitor() {
 
 		p.stateLock.Lock()
 		for v, s := range p.plotterStates {
-			if time.Since(s.lastSeen) > time.Duration(60*time.Minute) {
-				log.Printf("[Monitor] Stopping monitor on pid %d due to activity", v)
-				// cleanup
-				//s.fd1.Close()
+			if time.Since(s.lastSeen) > time.Duration(30*time.Minute) {
+				log.Printf("[Monitor] Stopping monitor on pid %d due to inactivity", v)
 				delete(p.plotterStates, v)
 			}
 		}
