@@ -15,6 +15,10 @@ var ownedPlotters map[string][]*os.Process
 var lastLaunched map[string]time.Time
 
 func startPlotter(cfg []*PlotterConfig, chiaPath string) {
+	if len(cfg) == 0 {
+		log.Println("[Plotter] No config specified, skipping init")
+		return
+	}
 
 	cfgMap := map[string]PlotterConfig{}
 	ownedPlotters = map[string][]*os.Process{}
