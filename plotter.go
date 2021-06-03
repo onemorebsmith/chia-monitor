@@ -114,26 +114,33 @@ func monitor(cfgMap map[string]PlotterConfig, chiaPath string) {
 		for k, cfg := range cfgMap {
 			byPhase := map[string][]*PlotterState{}
 			plotters := states[k]
-			log.Printf("[%s] {%s} has %d active plotters, goal %d", cfg.Tag, cfg.TempPath, len(plotters), cfg.StageConcurrency)
+			active := 0
+			log.Printf("[Plotter][%s] ------------------", cfg.Tag)
 			for _, v := range plotters {
 				phase := v.State["phase"]
 				prog := v.State["progress"]
-				log.Printf("\t%d state: %s, progress: %s", v.Pid, phase, prog)
-				byPhase[phase] = append(byPhase[phase], v)
+				if phase != "copy" {
+					active++
+					log.Printf("\t%d state: %s, progress: %s", v.Pid, phase, prog)
+					byPhase[phase] = append(byPhase[phase], v)
+				}
 			}
+
+			log.Printf("	[%d/%d] active plotters", len(plotters), cfg.StageConcurrency)
+
 			if len(plotters) < cfg.StageConcurrency {
 				if p1Plotters, exists := byPhase["1"]; exists {
 					if len(p1Plotters) >= cfg.MaxPhase1 {
-						log.Printf("[%s] has %d plotters in phase 1, max %d, waiting to launch more", cfg.Tag, len(p1Plotters), cfg.MaxPhase1)
+						log.Printf("\t%d plotters in phase 1, max %d, waiting to launch more", len(p1Plotters), cfg.MaxPhase1)
 						continue
 					}
-					log.Printf("[%s] has %d plotters in phase 1, max %d, starting a plotter", cfg.Tag, len(p1Plotters), cfg.MaxPhase1)
+					log.Printf("\t%d plotters in phase 1, max %d, starting a plotter", len(p1Plotters), cfg.MaxPhase1)
 				}
 
 				lastStarted := lastLaunched[cfg.Tag]
 				elapsed := time.Since(lastStarted)
 				if elapsed < cfg.MinCooldown {
-					log.Printf("[%s] In cooldown, will launch plotter in approx %f minutes", cfg.Tag, (cfg.MinCooldown-elapsed).Seconds()/60)
+					log.Printf("\tIn cooldown, will launch plotter in approx %f minutes", (cfg.MinCooldown-elapsed).Seconds()/60)
 					continue
 				}
 
