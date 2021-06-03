@@ -149,6 +149,7 @@ func (p *ProcessMonitor) startProcessMonitor() {
 		for v, s := range p.plotterStates {
 			if time.Since(s.lastSeen) > time.Duration(30*time.Minute) {
 				log.Printf("[Monitor] Stopping monitor on pid %d due to inactivity", v)
+				clearEntries(s)
 				delete(p.plotterStates, v)
 			}
 		}

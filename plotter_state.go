@@ -36,7 +36,6 @@ var processors = map[string][]*regexp.Regexp{
 }
 var debugPid = 336480
 
-var runCounter = regexp.MustCompile(`Total time = (\d+).* (\w+ \w+ \d{1,2} \d{2}:\d{2}:\d{2} \d{4})`)
 var phaseTime = regexp.MustCompile(`Time for phase (\d) = (\d+)`)
 var copyTime = regexp.MustCompile(`Copy time = (\d+)`)
 
@@ -56,7 +55,7 @@ var completionMarker = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	Help: "Number of plots completed by the given pid",
 }, []string{
 	"pid",
-	"drive",
+	"tag",
 	"id",
 })
 
@@ -92,6 +91,28 @@ func checkRegex(s string, r *regexp.Regexp) ([]string, bool) {
 }
 
 var tagRegex = regexp.MustCompile(`(\w+)_\d+`)
+
+// Clears previous prom entries so that they stop sending
+func clearEntries(ps *PlotterState) {
+	pid := fmt.Sprintf("%d", ps.Pid)
+	pp := ps.State["temp_drive"]
+	//plot_id := ps.State["plot_id"]
+	//temp_drive := ps.State["temp_drive"]
+	tag := ""
+	tempDir := filepath.Base(pp)
+	if matches, valid := checkRegex(tempDir, tagRegex); valid {
+		tag = matches[0]
+	}
+
+	// clear previous metrics or they'll continue to send
+	for _, pp := range statesNames {
+		//phaseTimings.DeleteLabelValues(pid, plot_id, temp_drive, pp)
+		for _, tt := range tableNames {
+			// clear previous metrics or they'll continue to send
+			plotterState.DeleteLabelValues(pid, pp, tt, tag)
+		}
+	}
+}
 
 func updateProgress(ps *PlotterState) {
 	pid := fmt.Sprintf("%d", ps.Pid)
@@ -167,7 +188,7 @@ func phaseChanged(ps *PlotterState, phase string, duration int) {
 
 	durSec := (time.Second * time.Duration(duration)).Seconds()
 	if plot_id == "" || temp_drive == "" || phase == "" {
-		log.Printf("Skipping phase timing update to to incomplete info: %+v", *ps)
+		log.Printf("Skipping phase timing update to to incomplete info: %+v", ps.Pid)
 	} else {
 		phaseTimings.WithLabelValues(fmt.Sprintf("%d", ps.Pid), plot_id, temp_drive, phase).Set(durSec)
 	}
@@ -208,29 +229,15 @@ func (s *PlotterState) Update(entry *logEntry) {
 		}
 	}
 
-	// if val, valid := checkRegex(entry.msg, compressPhase); valid {
-	// 	s.State["table"] = val
-	// 	phaseChanged(s, "compress", 0)
-	// }
-
 	if val, valid := checkRegex(entry.msg, copyTime); valid {
 		dur, _ := strconv.Atoi(val[0])
 		if entry.live {
 			phaseChanged(s, "copy", dur)
-		}
-	}
-
-	if val, valid := checkRegex(entry.msg, runCounter); valid {
-		if len(val) >= 2 && entry.live {
-			id := s.State["plot_id"]
-			temp := s.State["temp_drive"]
-			timestamp, _ := time.Parse(time.ANSIC, val[1])
 			pid := fmt.Sprintf("%d", s.Pid)
-			dur, _ := strconv.Atoi(val[0])
-			phaseChanged(s, "final", dur)
-
-			completionMarker.WithLabelValues(pid, temp, id).Set(float64(timestamp.Unix()))
-			s.Completions++
+			id := s.State["plot_id"]
+			tag := s.State["tag"]
+			// copy is the final phase change we'll get here, so mark completed
+			completionMarker.WithLabelValues(pid, tag, id).Set(1)
 		}
 	}
 
