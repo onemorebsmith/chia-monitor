@@ -130,10 +130,8 @@ func updateProgress(ps *PlotterState) {
 
 	progress := float64(0)
 	switch p {
-	case "final":
-		progress = 99
 	case "copy":
-		progress = 95
+		progress = 100
 	default:
 		pi, err := strconv.ParseFloat(p, 64)
 		if err != nil {
