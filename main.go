@@ -33,9 +33,13 @@ func main() {
 	go startPlotter(cfg.PlotterConfig, cfg.ChiaPath)
 	if cfg.UhaulEnabled {
 		go startUhaul(cfg.UhaulConfig)
+	} else {
+		log.Println("[WARN] UHaul disabled in cfg")
 	}
 	if cfg.FarmMonitorEnabled {
 		go startFarmMonitor(cfg.ChiaPath)
+	} else {
+		log.Println("[WARN] Farm monitor disabled in cfg")
 	}
 
 	startRecording()
