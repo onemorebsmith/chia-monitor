@@ -103,9 +103,18 @@ func monitorDrives(dev string) {
 	stats.waitQueue, _ = strconv.ParseInt(vals[11], 10, 64)
 
 	if previous, exists := mountStats[dev]; exists {
-		// reads/writes are in UNIX 512-byte sectors
+		//reads/writes are in UNIX 512-byte sectors
 		writesBytes := (stats.writeSectors - previous.writeSectors) * 512
 		readsBytes := (stats.readSectors - previous.readSectors) * 512
+
+		// prevent rollover issues when the linux counters rollover
+		if writesBytes < 0 {
+			writesBytes = 0
+		}
+
+		if readsBytes < 0 {
+			readsBytes = 0
+		}
 
 		driveWrites.WithLabelValues(dev).Add(float64(writesBytes))
 		driveReads.WithLabelValues(dev).Add(float64(readsBytes))
@@ -155,7 +164,6 @@ func pathToDevice(path string) (string, error) {
 }
 
 func startDriveMonitoring(cfg *MonitorConfig) {
-
 	// monitor temp paths
 	go func(p []string) {
 		var mounts []string

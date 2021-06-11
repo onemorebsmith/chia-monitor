@@ -56,6 +56,7 @@ func moveFile(fname string, path string) {
 	for _, o := range outdirs {
 		if atomic.CompareAndSwapInt32(&o.lock, 0, 1) {
 			defer func() { o.lock = 0 }() // reset at the end
+
 			// acquired lock on dir
 			now := time.Now()
 			srcPath := path + "/" + fname

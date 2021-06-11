@@ -40,7 +40,7 @@ func startPlotter(cfg []*PlotterConfig, chiaPath string) {
 // 	plotters []*PlotterState
 // }
 
-var template = `chia plots create -n 1 -r {CORES} -k 32  -u {BUCKETS} -b {RAM} -t {TEMP_PATH} -d {FINAL_PATH}  2>&1 > {LOGFILE}.log &`
+var template = `chia plots create -n 1 -r {CORES} -k 32  -u {BUCKETS} -b {RAM} -t {TEMP_PATH} -d {FINAL_PATH} -x  2>&1 > {LOGFILE}.log &`
 
 func startPlot(cfg PlotterConfig, chiaPath string) {
 	log.Printf("[%s] Starting plot on %s => %s", cfg.Tag, cfg.TempPath, cfg.FinalPath)

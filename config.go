@@ -26,12 +26,14 @@ type PlotterConfig struct {
 }
 
 type MonitorConfig struct {
-	TempPaths     []string         `yaml:"TempPaths"`
-	StagingPaths  []string         `yaml:"StagingPaths"`
-	FinalPaths    []string         `yaml:"FinalPaths"`
-	UhaulConfig   UhaulConfig      `yaml:"UHaul"`
-	PlotterConfig []*PlotterConfig `yaml:"Plotter"`
-	ChiaPath      string           `yaml:"ChiaPath"`
+	TempPaths          []string         `yaml:"TempPaths"`
+	StagingPaths       []string         `yaml:"StagingPaths"`
+	FinalPaths         []string         `yaml:"FinalPaths"`
+	UhaulConfig        UhaulConfig      `yaml:"UHaul"`
+	PlotterConfig      []*PlotterConfig `yaml:"Plotter"`
+	ChiaPath           string           `yaml:"ChiaPath"`
+	FarmMonitorEnabled bool             `yaml:"FarmMonitorEnabled"`
+	UhaulEnabled       bool             `yaml:"UhaulEnabled"`
 }
 
 func parseConfig(path string) (MonitorConfig, error) {
