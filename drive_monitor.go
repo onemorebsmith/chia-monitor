@@ -44,6 +44,7 @@ var (
 		Help: "drive writes per second, mb",
 	}, []string{
 		"device",
+		"path",
 	})
 
 	driveReads = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -51,6 +52,7 @@ var (
 		Help: "drive reads per second, mb",
 	}, []string{
 		"device",
+		"path",
 	})
 )
 
@@ -74,11 +76,16 @@ type DriveStats struct {
 	//flushTicks    int64 // ms
 }
 
+type mountMapping struct {
+	mount string
+	path  string
+}
+
 var mountStats = map[string]*DriveStats{}
 var numberRegex = regexp.MustCompile(`\d+`)
 
-func monitorDrives(dev string) {
-	fname := fmt.Sprintf("/sys/block/%s/stat", dev)
+func monitorDrives(dev mountMapping) {
+	fname := fmt.Sprintf("/sys/block/%s/stat", dev.mount)
 	b, err := os.ReadFile(fname)
 	if err != nil {
 		return
@@ -102,7 +109,7 @@ func monitorDrives(dev string) {
 	stats.ioTicks, _ = strconv.ParseInt(vals[10], 10, 64)
 	stats.waitQueue, _ = strconv.ParseInt(vals[11], 10, 64)
 
-	if previous, exists := mountStats[dev]; exists {
+	if previous, exists := mountStats[dev.path]; exists {
 		//reads/writes are in UNIX 512-byte sectors
 		writesBytes := (stats.writeSectors - previous.writeSectors) * 512
 		readsBytes := (stats.readSectors - previous.readSectors) * 512
@@ -116,11 +123,11 @@ func monitorDrives(dev string) {
 			readsBytes = 0
 		}
 
-		driveWrites.WithLabelValues(dev).Add(float64(writesBytes))
-		driveReads.WithLabelValues(dev).Add(float64(readsBytes))
+		driveWrites.WithLabelValues(dev.mount, dev.path).Add(float64(writesBytes))
+		driveReads.WithLabelValues(dev.mount, dev.path).Add(float64(readsBytes))
 	}
 
-	mountStats[dev] = stats
+	mountStats[dev.path] = stats
 }
 
 func validatePaths(paths []string) []string {
@@ -142,7 +149,7 @@ var driveRegex = regexp.MustCompile(`/dev/(\D{3})\d+`)
 func pathToDevice(path string) (string, error) {
 	o, err := exec.Command("/bin/df", "-h", path).Output()
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("[DriveMonitor] Error calling 'df -h' for path '%s': %v", err, path)
 	}
 
 	rows := strings.Split(string(o), "\n")
@@ -163,10 +170,11 @@ func pathToDevice(path string) (string, error) {
 	return m[1], nil
 }
 
-func startDriveMonitoring(cfg *MonitorConfig) {
+func startDriveMonitoring(cfg DriveMonitorConfig) {
 	// monitor temp paths
 	go func(p []string) {
-		var mounts []string
+
+		var mounts []mountMapping
 		for _, v := range p {
 			mount, err := pathToDevice(v)
 			if err != nil {
@@ -174,7 +182,8 @@ func startDriveMonitoring(cfg *MonitorConfig) {
 				continue
 			}
 
-			mounts = append(mounts, mount)
+			mounts = append(mounts,
+				mountMapping{mount: mount, path: v})
 		}
 
 		for {

@@ -25,15 +25,21 @@ type PlotterConfig struct {
 	MinCooldown      time.Duration `yaml:"minDelay"`
 }
 
+type DriveMonitorConfig struct {
+	TempPaths    []string `yaml:"TempPaths"`
+	FinalPaths   []string `yaml:"FinalPaths"`
+	StagingPaths []string `yaml:"StagingPaths"`
+}
+
 type MonitorConfig struct {
-	TempPaths          []string         `yaml:"TempPaths"`
-	StagingPaths       []string         `yaml:"StagingPaths"`
-	FinalPaths         []string         `yaml:"FinalPaths"`
-	UhaulConfig        UhaulConfig      `yaml:"UHaul"`
-	PlotterConfig      []*PlotterConfig `yaml:"Plotter"`
-	ChiaPath           string           `yaml:"ChiaPath"`
-	FarmMonitorEnabled bool             `yaml:"FarmMonitorEnabled"`
-	UhaulEnabled       bool             `yaml:"UhaulEnabled"`
+	UhaulConfig         UhaulConfig        `yaml:"UHaul"`
+	DriveMonitorConfig  DriveMonitorConfig `yaml:"DriveMonitor"`
+	PlotterConfig       []*PlotterConfig   `yaml:"Plotter"`
+	ChiaPath            string             `yaml:"ChiaPath"`
+	FarmMonitorEnabled  bool               `yaml:"FarmMonitorEnabled"`
+	UhaulEnabled        bool               `yaml:"UhaulEnabled"`
+	PlotterEnabled      bool               `yaml:"PlotterEnabled"`
+	DriveMonitorEnabled bool               `yaml:"DriveMonitorEnabled"`
 }
 
 func parseConfig(path string) (MonitorConfig, error) {
