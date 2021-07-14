@@ -20,9 +20,11 @@ type PlotterConfig struct {
 	Tag              string        `yaml:"tag"`
 	Buckets          string        `yaml:"buckets"`
 	Cores            string        `yaml:"cores"`
+	PoolKey          string        `yaml:"poolKey"`
 	StageConcurrency int           `yaml:"maxActivePlotters"`
 	MaxPhase1        int           `yaml:"maxPhase1"`
 	MinCooldown      time.Duration `yaml:"minDelay"`
+	StartDelay       time.Duration `yaml:"startDelay"`
 }
 
 type DriveMonitorConfig struct {

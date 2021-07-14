@@ -40,7 +40,7 @@ func startPlotter(cfg []*PlotterConfig, chiaPath string) {
 // 	plotters []*PlotterState
 // }
 
-var template = `chia plots create -n 1 -r {CORES} -k 32  -u {BUCKETS} -b {RAM} -t {TEMP_PATH} -d {FINAL_PATH} -x  2>&1 > {LOGFILE}.log &`
+var template = `chia plots create -n 1 -r {CORES} -k 32 -c {POOL_KEY}  -u {BUCKETS} -b {RAM} -t {TEMP_PATH} -d {FINAL_PATH} -x  2>&1 > {LOGFILE}.log &`
 
 func startPlot(cfg PlotterConfig, chiaPath string) {
 	log.Printf("[%s] Starting plot on %s => %s", cfg.Tag, cfg.TempPath, cfg.FinalPath)
@@ -59,6 +59,7 @@ func startPlot(cfg PlotterConfig, chiaPath string) {
 	plotterCommand = strings.ReplaceAll(plotterCommand, "{TEMP_PATH}", fmt.Sprintf("%s/%s", cfg.TempPath, plotTag))
 	plotterCommand = strings.ReplaceAll(plotterCommand, "{FINAL_PATH}", cfg.FinalPath)
 	plotterCommand = strings.ReplaceAll(plotterCommand, "{LOGFILE}", fmt.Sprintf("%s/plotter_logs/%s", cwd, plotTag))
+	plotterCommand = strings.ReplaceAll(plotterCommand, "{POOL_KEY}", cfg.PoolKey)
 	log.Printf("[%s] Plot command: `%s`", cfg.Tag, plotterCommand)
 
 	buffer.Write([]byte(fmt.Sprintf("cd %s;. ./activate;chia init;%s", chiaPath, plotterCommand)))
@@ -91,6 +92,8 @@ func startPlot(cfg PlotterConfig, chiaPath string) {
 func monitor(cfgMap map[string]PlotterConfig, chiaPath string) {
 	time.Sleep(time.Second * 60)
 
+	start := time.Now()
+
 	for {
 		states := map[string][]*PlotterState{}
 
@@ -116,6 +119,11 @@ func monitor(cfgMap map[string]PlotterConfig, chiaPath string) {
 			plotters := states[k]
 			active := 0
 			log.Printf("[Plotter][%s] ------------------", cfg.Tag)
+			if time.Since(start) < cfg.StartDelay {
+				wait := cfg.StartDelay - time.Since(start)
+				log.Printf("\tWill start potter in approx %f minutes due to start delay", (cfg.MinCooldown-wait).Seconds()/60)
+				continue
+			}
 			for _, v := range plotters {
 				phase := v.State["phase"]
 				prog := v.State["progress"]

@@ -68,7 +68,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "total_chia_farmed",
+          "expr": "MAX(total_chia_farmed)",
           "interval": "",
           "legendFormat": "Total Farmed",
           "refId": "A"
@@ -549,7 +549,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "netspace_estimate_pib",
+          "expr": "MAX(netspace_estimate_pib)",
           "interval": "",
           "legendFormat": "Netspace",
           "refId": "A"
@@ -717,7 +717,7 @@
           "exemplar": true,
           "expr": "rate(drive_writes[1m])",
           "interval": "",
-          "legendFormat": "{{job}}::{{device}}",
+          "legendFormat": "{{job}}::{{path}}",
           "refId": "A"
         }
       ],
@@ -973,7 +973,7 @@
       }
     }
   ],
-  "refresh": "30s",
+  "refresh": "1m",
   "schemaVersion": 27,
   "style": "dark",
   "tags": [],
@@ -981,12 +981,12 @@
     "list": []
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-30m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Chia",
   "uid": "CO_Hjm6Mz",
-  "version": 15
+  "version": 18
 }

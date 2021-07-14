@@ -102,7 +102,7 @@ func monitorDrives(dev mountMapping) {
 	stats.readSectors, _ = strconv.ParseInt(vals[3], 10, 64)
 	stats.readTicks, _ = strconv.ParseInt(vals[4], 10, 64)
 	stats.writeIOs, _ = strconv.ParseInt(vals[5], 10, 64)
-	stats.writeMerges, _ = strconv.ParseInt(vals[6], 10, 64)
+	stats.writeMerges, _ = strconv.ParseInt(vals[6], 10, 64)	
 	stats.writeSectors, _ = strconv.ParseInt(vals[7], 10, 64)
 	stats.writeTicks, _ = strconv.ParseInt(vals[8], 10, 64)
 	stats.inFlight, _ = strconv.ParseInt(vals[9], 10, 64)
