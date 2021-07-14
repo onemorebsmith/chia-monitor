@@ -1,0 +1,72 @@
+UhaulEnabled: true 
+ChiaPath: /media/ssd/chia/chia-blockchain
+
+TempPaths:
+  - /media/ext/plot_temp
+  - /media/ssd/plot_temp
+
+StagingPaths:
+  - /media/ext/plot_staging
+  - /media/ssd/plot_staging
+
+UHaul:
+  StagingPaths:
+    - /media/ext/plot_staging 
+    - /media/ssd/plot_staging
+    - /media/remote/ext0/plots
+  FinalPaths:
+    - /media/farm/ext4/plots
+    - /media/farm/ext5/plots
+
+FinalPaths:
+  - /media/farm/ext0/plots
+  - /media/farm/ext1/plots
+  - /media/farm/ext2/plots
+  - /media/farm/ext3/plots
+  - /media/farm/ext4/plots
+  - /media/farm/ext5/plots
+  - /media/farm/ext6/plots
+
+Plotter:
+  - tempPath: /media/ssd/plot_temp
+    finalPath: /media/ssd/plot_staging
+    maxActivePlotters: 6
+    maxPhase1: 2
+    minDelay: 60m
+    ram: 4000
+    cores: 8
+    buckets: 128
+    tag: ssd
+
+  - tempPath: /media/ext/plot_temp
+    finalPath: /media/ext/plot_staging
+    maxActivePlotters: 6
+    maxPhase1: 2
+    minDelay: 60m
+    ram: 4000
+    cores: 8
+    buckets: 128
+    tag: hdd
+
+  - tempPath: /media/farm/ext3/plot_temp
+    finalPath: /media/farm/ext3/
+    maxActivePlotters: 1
+    maxPhase1: 1
+    minDelay: 60m
+    ram: 8000
+    cores: 8
+    buckets: 64
+    tag: ext3
+
+  - tempPath: /media/farm/ext6/plot_temp
+    finalPath: /media/farm/ext6/
+    maxActivePlotters: 1
+    maxPhase1: 1
+
+    minDelay: 60m
+    ram: 8000
+    cores: 8
+    buckets: 64
+    tag: ext6
+
+
