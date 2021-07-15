@@ -13,6 +13,7 @@ WIP monitor that monitors the logs generate by the chia client and exposes the d
 - launch services:
   - `./launch_grafana.sh;./launch_prom.sh`
   - `./launch_monitor.sh`
+ 
 This should launch grafana/prom/monitor and expose a local grafan instance on localhost:3000. Grafana and prom are both configured using persistent storage volumes, so data will be retained between launches. At this point you should register prom with grafana (grafana->configuration->data sources). Prometheous should be active on port 9090 and automatically start scraping the local monitor instance every 15s. 
 
 
