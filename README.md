@@ -1,5 +1,5 @@
 # chia-monitor
-WIP monitor that monitors the logs generate by the chia client and exposes the data to grafana using Prometheus. Also incorps scheduling and creating of more chia plots as well as moving plots to staging/farm directories.  
+WIP monitor that monitors the logs generate by the chia client and exposes the data to grafana using Prometheus. Also incorps scheduling and creating of more chia plots as well as moving plots to staging/farm directories. Currently tested in Ubuntu only but should work in other linux distros. Will not work in windows currently due to relying on Linux-specific calls and file structures. 
 
 # install
 - Requires go & docker installed
