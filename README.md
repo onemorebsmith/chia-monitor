@@ -4,3 +4,10 @@ WIP monitor that monitors the logs generate by the chia client and exposes the d
 # grafana output
 
 ![Alt text](https://i.imgur.com/HkBFB6W.png "Grafana")
+
+
+# Todo:
+- Containerize the monitor
+- Call chia rpc directly instead of scraping the log files/directories
+- Windows support (syscalls to replace df/disk/memstat)
+- MadMax plotter support
