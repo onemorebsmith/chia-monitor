@@ -20,6 +20,13 @@ This should launch grafana/prom/monitor and expose a local grafan instance on lo
 You can get an output similar to this if you import the grafana json export in `grafana/chia_dash.json` or configure your own using the metrics exposed to prom. 
 ![Alt text](https://i.imgur.com/HkBFB6W.png "Grafana")
 
+# Features
+## Drive monitoring
+This feature monitors your staging and final plot paths and provides metrics such as disk activity (for temp paths) and plot counts for staging/final directories. 
+## Uhaul
+Uhaul monitors any drives listed as `StagingPaths` drives and moves finished plots directories listed in `FinalPaths`. Uhaul maintains an internal state so it will never attempt to have more than one file being transferred to a single drive at a time, but will allow transfers to multiple drives at once. This keeps the transfer speeds high and keeps from bogging the drive I/O rates down. Internally, UHaul uses native rysnc for reliablilty. Once transferred successfully, uhaul removes the file from staging.
+## Plotter
+The plotter part of chia-monitor allows for the creation of new plots in an organized manner. Currently this uses the default chia plotter from the chia-blockchain repo, but monitors the output of the plotting system to properly space and sequence plots as desired from the user. Check the `config_example.yaml` for all the options allowed here. This also supports the new portable plot format.
 
 # Todo:
 - Containerize the monitor
