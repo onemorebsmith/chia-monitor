@@ -21,12 +21,18 @@ You can get an output similar to this if you import the grafana json export in `
 ![Alt text](https://i.imgur.com/HkBFB6W.png "Grafana")
 
 # Features
-## Drive monitoring
+## Drive Monitor
 This feature monitors your staging and final plot paths and provides metrics such as disk activity (for temp paths) and plot counts for staging/final directories. 
 ## Uhaul
 Uhaul monitors any drives listed as `StagingPaths` drives and moves finished plots directories listed in `FinalPaths`. Uhaul maintains an internal state so it will never attempt to have more than one file being transferred to a single drive at a time, but will allow transfers to multiple drives at once. This keeps the transfer speeds high and keeps from bogging the drive I/O rates down. Internally, UHaul uses native rysnc for reliablilty. Once transferred successfully, uhaul removes the file from staging.
 ## Plotter
-The plotter part of chia-monitor allows for the creation of new plots in an organized manner. Currently this uses the default chia plotter from the chia-blockchain repo, but monitors the output of the plotting system to properly space and sequence plots as desired from the user. Check the `config_example.yaml` for all the options allowed here. This also supports the new portable plot format.
+The plotter part of chia-monitor allows for the creation of new plots in an organized manner. Currently this uses the default chia plotter from the chia-blockchain repo, but monitors the output of the plotting system to properly space and sequence plots as desired from the user. Check the `config_example.yaml` for all the options allowed here. This also supports the new portable plot format. The plotter disowns the plot processes, so killing the monitor will not end the plotting process. If the monitor is then resumed, the plots will be re-acquired and monitored as if they were launched in the same session. Any plots launched by the plotter will have their output redirected to a local log file in `plotter_logs`
+## Farm Monitor
+The farm monitor peroiodically calls the chia executable/environment (ie `chia farm summary`) and exposes the results to prom. Metrics expose here include total chia farmed, netspace, and estimated time to win.
+## Memory Monitor
+The memory monitor periodically checks available ram, used ram, and swap information and exposes it to prom. This information is acquired using native linux `proc/meminfo`. 
+## Process Monitor
+The process monitor checks for any instances of chia plotters (non-madmax) running and exposes information such as phase timings, current status % and completed plots. For this to work a plotter process must redirect its' output to a file. This also monitors plots launched by the monitor, which are automatically logged to a local file. Processes are found using `pgrep` and monitored using the `proc/{pid}/fd/1` file
 
 # Todo:
 - Containerize the monitor
