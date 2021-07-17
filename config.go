@@ -9,6 +9,8 @@ import (
 )
 
 type UhaulConfig struct {
+	PruneDateRaw string `yaml:"PruneDate"`
+	PruneDate    time.Time
 	StagingPaths []string `yaml:"StagingPaths"`
 	FinalPaths   []string `yaml:"FinalPaths"`
 }
@@ -74,6 +76,13 @@ func parseConfig(path string) (MonitorConfig, error) {
 
 		if v.TempPath == "" {
 			v.TempPath = v.FinalPath
+		}
+	}
+
+	if config.UhaulConfig.PruneDateRaw != "" {
+		config.UhaulConfig.PruneDate, err = time.Parse("1-2-2006", config.UhaulConfig.PruneDateRaw)
+		if err != nil {
+			return config, err
 		}
 	}
 

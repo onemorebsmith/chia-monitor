@@ -83,11 +83,19 @@ type mountMapping struct {
 
 var mountStats = map[string]*DriveStats{}
 var numberRegex = regexp.MustCompile(`\d+`)
+var driveRegex = regexp.MustCompile(`/dev/(\D{3})\d+`)
 
 func monitorDrives(dev mountMapping) {
-	fname := fmt.Sprintf("/sys/block/%s/stat", dev.mount)
+	m := driveRegex.FindStringSubmatch(dev.mount)
+	if len(m) < 2 {
+		log.Printf("Failed to start monitoring on drive %s, format unexpected", dev.mount)
+		return
+	}
+
+	fname := fmt.Sprintf("/sys/block/%s/stat", m[1])
 	b, err := os.ReadFile(fname)
 	if err != nil {
+		log.Printf("Failed to start monitoring on drive %s: %v", dev.mount, err)
 		return
 	}
 
