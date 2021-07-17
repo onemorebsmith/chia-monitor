@@ -102,7 +102,7 @@ func monitorDrives(dev mountMapping) {
 	stats.readSectors, _ = strconv.ParseInt(vals[3], 10, 64)
 	stats.readTicks, _ = strconv.ParseInt(vals[4], 10, 64)
 	stats.writeIOs, _ = strconv.ParseInt(vals[5], 10, 64)
-	stats.writeMerges, _ = strconv.ParseInt(vals[6], 10, 64)	
+	stats.writeMerges, _ = strconv.ParseInt(vals[6], 10, 64)
 	stats.writeSectors, _ = strconv.ParseInt(vals[7], 10, 64)
 	stats.writeTicks, _ = strconv.ParseInt(vals[8], 10, 64)
 	stats.inFlight, _ = strconv.ParseInt(vals[9], 10, 64)
@@ -144,10 +144,24 @@ func validatePaths(paths []string) []string {
 	return validPaths
 }
 
-var driveRegex = regexp.MustCompile(`/dev/(\D{3})\d+`)
+type DfOutput struct {
+	devMount        string
+	totalBlocks     int64
+	usedBlocks      int64
+	availableBlocks int64
+	usePct          float64
+	mount           string
+}
 
-func pathToDevice(path string) (string, error) {
-	o, err := exec.Command("/bin/df", "-h", path).Output()
+var dfColRegex = regexp.MustCompile(`\s+`)
+
+func df(path string, flags ...string) (*DfOutput, error) {
+	// todo: df utility
+
+	args := flags
+	args = append(args, path)
+
+	o, err := exec.Command("/bin/df", args...).Output()
 	if err != nil {
 		log.Printf("[DriveMonitor] Error calling 'df -h' for path '%s': %v", err, path)
 	}
@@ -155,19 +169,48 @@ func pathToDevice(path string) (string, error) {
 	rows := strings.Split(string(o), "\n")
 	// first row is header, second is data
 	if len(rows) < 1 {
-		return "", fmt.Errorf("unexpected output from df")
+		return nil, fmt.Errorf("unexpected output from df")
 	}
 
-	mount := strings.Split(rows[1], " ")[0]
-
-	m := driveRegex.FindStringSubmatch(mount)
-	if len(m) < 2 {
-		return "", fmt.Errorf("unexpected output from df")
+	// clean up the results a bit
+	rows[1] = dfColRegex.ReplaceAllString(rows[1], " ")
+	cols := strings.Split(rows[1], " ")
+	if len(cols) < 6 {
+		return nil, fmt.Errorf("unexpected output from df")
 	}
 
-	log.Printf("Mapped '%s' => '%s'", path, m[1])
+	out := &DfOutput{}
+	out.devMount = cols[0]
+	out.totalBlocks, err = strconv.ParseInt(cols[1], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("unexpected output from df: %v", err)
+	}
 
-	return m[1], nil
+	out.usedBlocks, err = strconv.ParseInt(cols[2], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("unexpected output from df: %v", err)
+	}
+
+	out.availableBlocks, err = strconv.ParseInt(cols[3], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("unexpected output from df: %v", err)
+	}
+
+	out.usePct = float64(out.availableBlocks) / float64(out.totalBlocks)
+
+	out.mount = cols[5]
+	return out, nil
+}
+
+func pathToDevice(path string) (string, error) {
+	dfStats, err := df(path)
+	if err != nil {
+		return "", err
+	}
+
+	log.Printf("Mapped '%s' => '%s'", path, dfStats.devMount)
+
+	return dfStats.devMount, nil
 }
 
 func startDriveMonitoring(cfg DriveMonitorConfig) {

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sync/atomic"
@@ -52,7 +54,16 @@ func monitorFolder(path string) {
 	}
 }
 
-func moveFile(fname string, path string) {
+func checkSpace(requiredMb int64, path string) (bool, error) {
+	dfOutput, err := df(path, "-m")
+	if err != nil {
+		return false, err
+	}
+
+	return dfOutput.availableBlocks > int64(requiredMb), nil
+}
+
+func moveFile(fname string, path string) error {
 	for _, o := range outdirs {
 		if atomic.CompareAndSwapInt32(&o.lock, 0, 1) {
 			defer func() { o.lock = 0 }() // reset at the end
@@ -61,14 +72,31 @@ func moveFile(fname string, path string) {
 			now := time.Now()
 			srcPath := path + "/" + fname
 			destPath := o.path + "/" + fname
+
+			fi, err := os.Stat(srcPath)
+			if err != nil {
+				return fmt.Errorf("error calling stat on file %s, err: %v", fname, err)
+			}
+			// get the size in mb
+			sizeMb := fi.Size() / 1024 / 1024
+			fits, err := checkSpace(sizeMb, o.path)
+			if err != nil {
+				return err
+			}
+			if !fits {
+				continue // no space for plot
+			}
+
 			log.Printf("[Uhaul] Moving '%s' => '%s'", srcPath, destPath)
-			_, err := exec.Command("/usr/bin/rsync", "--remove-source-files", srcPath, destPath).Output()
+			_, err = exec.Command("/usr/bin/rsync", "--remove-source-files", srcPath, destPath).Output()
 			if err != nil {
 				log.Printf("[Uhaul] Failed moving file '%s' => '%s': %+v", srcPath, destPath, err)
 				continue
 			}
 			log.Printf("[Uhaul] Moved file '%s' => '%s in %f minutes", srcPath, destPath, time.Since(now).Minutes())
-			return // finished
+			return nil // finished
 		}
 	}
+
+	return nil
 }
